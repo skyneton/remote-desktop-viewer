@@ -73,19 +73,21 @@ namespace RemoteDesktopViewer
 
         private void ClientForm_MouseMove(object sender, MouseEventArgs e)
         {
-            if(Focused && NetworkManager.ServerControl)
-                NetworkManager.SendPacket(new PacketMouseMove((float) e.Location.X / ClientSize.Width, (float) e.Location.Y / ClientSize.Height));
+            if (!Focused || !NetworkManager.ServerControl || !CursorWidthInScreen()) return;
+            
+            var pos = new PointF((float) e.Location.X / ClientSize.Width, (float) e.Location.Y / ClientSize.Height);
+            NetworkManager.SendPacket(new PacketMouseMove(pos));
         }
 
         private void ClientForm_MouseWheel(object sender, MouseEventArgs e)
         {
-            if(Focused && NetworkManager.ServerControl)
-                NetworkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.Wheel, (uint) e.Delta));
+            if (!Focused || !NetworkManager.ServerControl) return;
+            NetworkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.Wheel, (uint) e.Delta));
         }
 
         private void ClientForm_MouseDown(object sender, MouseEventArgs e)
         {
-            if (!Focused || !NetworkManager.ServerControl) return;
+            if (!Focused || !NetworkManager.ServerControl || !CursorWidthInScreen()) return;
 
             switch (e.Button)
             {
@@ -113,7 +115,7 @@ namespace RemoteDesktopViewer
 
         private void ClientForm_MouseUp(object sender, MouseEventArgs e)
         {
-            if (!Focused || !NetworkManager.ServerControl) return;
+            if (!Focused || !NetworkManager.ServerControl || !CursorWidthInScreen()) return;
 
             switch (e.Button)
             {
@@ -151,6 +153,13 @@ namespace RemoteDesktopViewer
             if (!Focused || !NetworkManager.ServerControl) return;
             e.Handled = true;
             NetworkManager.SendPacket(new PacketKeyEvent((uint) e.KeyValue, PacketKeyEvent.KeyUp));
+        }
+
+        private bool CursorWidthInScreen()
+        {
+            return !(MousePosition.X < Location.X || MousePosition.Y < Location.Y ||
+                     MousePosition.X > Location.X + ClientSize.Width ||
+                     MousePosition.Y > Location.Y + ClientSize.Height);
         }
     }
 }

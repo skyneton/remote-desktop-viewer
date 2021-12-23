@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System.Diagnostics;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using RemoteDesktopViewer.Utils;
@@ -42,6 +43,7 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             _percentX = percentX;
             _percentY = percentY;
         }
+        public PacketMouseMove(PointF pos) : this(pos.X, pos.Y) {}
         internal override void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.MouseMove);
@@ -53,6 +55,7 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         {
             var posX = (int) (Screen.PrimaryScreen.Bounds.Width * buf.ReadFloat());
             var posY = (int) (Screen.PrimaryScreen.Bounds.Height * buf.ReadFloat());
+            
             if(networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
                 Cursor.Position = new Point(posX, posY);
         }

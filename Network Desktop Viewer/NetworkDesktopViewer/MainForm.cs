@@ -49,7 +49,6 @@ namespace RemoteDesktopViewer
             }
             catch (Exception err)
             {
-                Debug.WriteLine(err);
                 MessageBox.Show(err.Message);
             }
         }
