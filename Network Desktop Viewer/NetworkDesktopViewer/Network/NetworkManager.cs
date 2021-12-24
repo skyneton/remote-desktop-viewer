@@ -96,7 +96,7 @@ namespace RemoteDesktopViewer.Network
 
         internal void ServerLogin(string password)
         {
-            if (RemoteServer.Instance.Password.Equals(password.ToSha256()))
+            if (RemoteServer.Instance?.Password.Equals(password.ToSha256()) ?? false)
             {
                 IsAuthenticate = true;
                 ScreenThreadManager.SendFullScreen(this);
@@ -104,7 +104,7 @@ namespace RemoteDesktopViewer.Network
             }
             else
             {
-                SendPacket(new PacketDisconnect("비밀번호 오류"));
+                SendPacket(new PacketDisconnect("Password error."));
                 Disconnect();
             }
         }
