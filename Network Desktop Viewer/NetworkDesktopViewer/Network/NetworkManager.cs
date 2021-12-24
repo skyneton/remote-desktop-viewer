@@ -74,7 +74,13 @@ namespace RemoteDesktopViewer.Network
             LastPacketMillis = TimeManager.CurrentTimeMillis;
             
             var bytes = new byte[ByteBuf.ReadVarInt(_client.GetStream())];
-            _client.GetStream().Read(bytes, 0, bytes.Length);
+            var recvByteSizeAcc = _client.GetStream().Read(bytes, 0, bytes.Length);
+
+            while (recvByteSizeAcc != bytes.Length)
+            {
+                var recvByteSize = _client.GetStream().Read(bytes, recvByteSizeAcc, bytes.Length - recvByteSizeAcc);
+                recvByteSizeAcc += recvByteSize;
+            }
 
             try
             {
@@ -120,7 +126,7 @@ namespace RemoteDesktopViewer.Network
 
             try
             {
-                _client.GetStream().WriteAsync(data, 0, data.Length);
+                _client.GetStream().Write(data, 0, data.Length);
                 _client.GetStream().Flush();
             
                 LastPacketMillis = TimeManager.CurrentTimeMillis;
