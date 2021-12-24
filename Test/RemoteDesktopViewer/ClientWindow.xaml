@@ -1,0 +1,19 @@
+﻿<Window x:Class="RemoteDesktopViewer.ClientWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:RemoteDesktopViewer"
+        mc:Ignorable="d"
+        Title="ClientWindow" Height="450" Width="800"
+        Closed="ClientWindow_OnClosed"
+        MouseMove="ClientWindow_OnMouseMove"
+        MouseWheel="ClientWindow_OnMouseWheel"
+        MouseDown="ClientWindow_OnMouseDown"
+        MouseUp="ClientWindow_OnMouseUp"
+        KeyDown="ClientWindow_OnKeyDown"
+        KeyUp="ClientWindow_OnKeyUp">
+    <Grid>
+        <Image Name="Image" Stretch="Fill"></Image>
+    </Grid>
+</Window>

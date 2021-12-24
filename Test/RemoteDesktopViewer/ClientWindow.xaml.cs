@@ -1,0 +1,157 @@
+﻿using System;
+using System.Diagnostics;
+using System.Drawing;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media.Imaging;
+using RemoteDesktopViewer.Network;
+using RemoteDesktopViewer.Network.Packet.Data;
+using RemoteDesktopViewer.Utils;
+
+namespace RemoteDesktopViewer
+{
+    public partial class ClientWindow : Window
+    {
+        private WriteableBitmap _bitmap;
+        private NetworkManager _networkManager;
+
+        public ClientWindow(NetworkManager networkManager)
+        {
+            _networkManager = networkManager;
+            InitializeComponent();
+        }
+
+        internal void DrawScreenChunk(int x, int y, byte[] data)
+        {
+            try
+            {
+                var image = data.ToBitmapImage();
+                var stride = image.PixelWidth * (image.Format.BitsPerPixel >> 3);
+                var pixels = new byte[image.PixelHeight * stride];
+                image.CopyPixels(pixels, stride, 0);
+
+                _bitmap.Dispatcher.Invoke(() =>
+                {
+                    var destStride = image.PixelWidth * (_bitmap.Format.BitsPerPixel >> 3);
+                    _bitmap.WritePixels(new Int32Rect(x, y, image.PixelWidth, image.PixelHeight), pixels, destStride,
+                        0);
+                });
+            }
+            catch (Exception err)
+            {
+                Debug.WriteLine(err);
+            }
+        }
+
+        internal void DrawFullScreen(byte[] pixels)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _bitmap = new WriteableBitmap(pixels.ToBitmapImage());
+                Image.BeginInit();
+                Image.Source = _bitmap;
+                Image.EndInit();
+            });
+
+            //
+            // _width = _image.Width;
+            // _height = _image.Height;
+            // _graphics.DrawImage(_image, 0, 0, ClientSize.Width, ClientSize.Height);
+        }
+
+        private void ClientWindow_OnClosed(object sender, EventArgs e)
+        {
+            _networkManager?.Disconnect(false);
+        }
+
+        private void ClientWindow_OnMouseMove(object sender, MouseEventArgs e)
+        {
+            if (!IsFocused || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
+
+            var point = e.GetPosition(this);
+            var pos = new PointF((float) (point.X / RenderSize.Width), (float) (point.Y / RenderSize.Height));
+            _networkManager.SendPacket(new PacketMouseMove(pos));
+        }
+
+        private void ClientWindow_OnMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (!IsFocused || !_networkManager.ServerControl) return;
+            _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.Wheel, (uint) e.Delta));
+        }
+
+        private void ClientWindow_OnMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!IsFocused || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
+
+            switch (e.ChangedButton)
+            {
+                case MouseButton.Left:
+                    _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.LeftButtonDown, 0));
+                    break;
+                case MouseButton.Middle:
+                    _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.MiddleDown, 0));
+                    break;
+                case MouseButton.Right:
+                    _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.RightButtonDown, 0));
+                    break;
+                case MouseButton.XButton1:
+                    _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.XButtonDown, 1));
+                    break;
+                case MouseButton.XButton2:
+                    _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.XButtonDown, 2));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        private void ClientWindow_OnMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!IsFocused || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
+
+            switch (e.ChangedButton)
+            {
+                case MouseButton.Left:
+                    _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.LeftButtonUp, 0));
+                    break;
+                case MouseButton.Middle:
+                    _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.MiddleUp, 0));
+                    break;
+                case MouseButton.Right:
+                    _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.RightButtonUp, 0));
+                    break;
+                case MouseButton.XButton1:
+                    _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.XButtonUp, 1));
+                    break;
+                case MouseButton.XButton2:
+                    _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.XButtonUp, 2));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        private void ClientWindow_OnKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!IsFocused || !_networkManager.ServerControl) return;
+            e.Handled = true;
+            _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.Key),
+                PacketKeyEvent.KeyDown));
+        }
+
+        private void ClientWindow_OnKeyUp(object sender, KeyEventArgs e)
+        {
+            if (!IsFocused || !_networkManager.ServerControl) return;
+            e.Handled = true;
+            _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.Key), PacketKeyEvent.KeyUp));
+        }
+
+        private bool CursorWidthInScreen(MouseEventArgs e)
+        {
+            var point = e.GetPosition(this);
+            return !(point.X < 0 || point.Y < 0 ||
+                     point.X > RenderSize.Width ||
+                     point.Y > RenderSize.Height);
+        }
+    }
+}

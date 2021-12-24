@@ -1,0 +1,101 @@
+﻿<Window x:Class="RemoteDesktopViewer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RemoteDesktopViewer"
+        mc:Ignorable="d"
+        Title="Remote Desktop Viewer" Height="470" Width="800" ResizeMode="NoResize"
+        Closing="MainWindow_OnClosing"
+        FontFamily="Tahoma">
+    <Grid>
+        <DockPanel LastChildFill="True">
+            <Border Padding="10" Width="400" DockPanel.Dock="Left">
+                <Grid>
+                    <Label
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        Margin="0 50 0 0">IP Address</Label>
+                    <TextBox
+                        Name="IpAddress"
+                        VerticalAlignment="Top"
+                        Margin="0 70 0 0"
+                        Width="320" Height="27"
+                        PreviewKeyDown="IpAddress_OnPreviewKeyDown">127.0.0.1</TextBox>
+                    
+                    <Label
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        Margin="0 150 0 0">Password</Label>
+                    <PasswordBox
+                        Name="ClientPassword"
+                        VerticalAlignment="Top"
+                        Margin="0 170 0 0"
+                        Width="320" Height="27"
+                        PasswordChar="*"
+                        MaxLength="45"
+                        ></PasswordBox>
+                    
+                    <Button
+                        Name="Connect"
+                        Margin="50 100"
+                        Height="30"
+                        VerticalAlignment="Bottom"
+                        Click="Connect_OnClick">
+                        Connect
+                    </Button>
+                </Grid>
+            </Border>
+            <Border Padding="10" DockPanel.Dock="Right">
+                <Grid>
+                    <Label>Remote Server ON/OFF</Label>
+                    <ToggleButton
+                        Name="ServerOnOff"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Margin="0 20"
+                        Width="200" Height="20"
+                        Checked="ServerOnOff_OnCheckedChanged"
+                        Unchecked="ServerOnOff_OnCheckedChanged">Server Closed</ToggleButton>
+                    
+                    <Label
+                        Margin="10 60"
+                        >Control</Label>
+                    <ToggleButton
+                        Name="ServerControl"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Margin="10 80"
+                        Width="60" Height="20"
+                        Checked="ServerControl_OnCheckedChanged"
+                        Unchecked="ServerControl_OnCheckedChanged">OFF</ToggleButton>
+                    
+                    <Label
+                        VerticalAlignment="Center"
+                        Margin="0">Ports</Label>
+                    <TextBox
+                        Name="ServerPort"
+                        HorizontalAlignment="Left"
+                        Margin="0 45 0 0"
+                        Width="180" Height="27"
+                        MaxLength="5"
+                        PreviewKeyDown="ServerPort_OnPreviewKeyDown">33062</TextBox>
+                    
+                    <Label
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Margin="0 150 0 0">Password</Label>
+                    <PasswordBox
+                        Name="ServerPassword"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Left"
+                        Margin="0 195 0 0"
+                        Width="320" Height="27"
+                        PasswordChar="*"
+                        MaxLength="45"
+                    ></PasswordBox>
+                </Grid>
+            </Border>
+        </DockPanel>
+    </Grid>
+</Window>
