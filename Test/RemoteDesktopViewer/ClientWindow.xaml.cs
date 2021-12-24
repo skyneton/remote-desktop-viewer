@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
@@ -66,7 +67,8 @@ namespace RemoteDesktopViewer
 
         private void ClientWindow_OnMouseMove(object sender, MouseEventArgs e)
         {
-            if (!IsFocused || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
+            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
+            
 
             var point = e.GetPosition(this);
             var pos = new PointF((float) (point.X / RenderSize.Width), (float) (point.Y / RenderSize.Height));
@@ -75,13 +77,13 @@ namespace RemoteDesktopViewer
 
         private void ClientWindow_OnMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (!IsFocused || !_networkManager.ServerControl) return;
+            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
             _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.Wheel, (uint) e.Delta));
         }
 
         private void ClientWindow_OnMouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (!IsFocused || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
+            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
 
             switch (e.ChangedButton)
             {
@@ -107,7 +109,7 @@ namespace RemoteDesktopViewer
 
         private void ClientWindow_OnMouseUp(object sender, MouseButtonEventArgs e)
         {
-            if (!IsFocused || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
+            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
 
             switch (e.ChangedButton)
             {
@@ -133,7 +135,7 @@ namespace RemoteDesktopViewer
 
         private void ClientWindow_OnKeyDown(object sender, KeyEventArgs e)
         {
-            if (!IsFocused || !_networkManager.ServerControl) return;
+            if (!IsActive || !_networkManager.ServerControl) return;
             e.Handled = true;
             _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.Key),
                 PacketKeyEvent.KeyDown));
@@ -141,7 +143,7 @@ namespace RemoteDesktopViewer
 
         private void ClientWindow_OnKeyUp(object sender, KeyEventArgs e)
         {
-            if (!IsFocused || !_networkManager.ServerControl) return;
+            if (!IsActive || !_networkManager.ServerControl) return;
             e.Handled = true;
             _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.Key), PacketKeyEvent.KeyUp));
         }
