@@ -122,6 +122,7 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         {
             buf.WriteVarInt((int) PacketType.KeyEvent);
             buf.WriteUInt(_id);
+            buf.WriteUInt(_flag);
         }
 
         internal override void Read(NetworkManager networkManager, ByteBuf buf)
