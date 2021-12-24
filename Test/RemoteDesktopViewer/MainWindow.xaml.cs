@@ -95,6 +95,8 @@ namespace RemoteDesktopViewer
         private void ServerControl_OnCheckedChanged(object sender, RoutedEventArgs e)
         {
             var button = (ToggleButton) sender;
+            RemoteServer.Instance?.UpdateServerControl(button.IsChecked ?? false);
+            
             if (button.IsChecked ?? false)
             {
                 button.Content = "ON";
