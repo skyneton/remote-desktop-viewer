@@ -11,8 +11,8 @@
         MouseWheel="ClientWindow_OnMouseWheel"
         MouseDown="ClientWindow_OnMouseDown"
         MouseUp="ClientWindow_OnMouseUp"
-        KeyDown="ClientWindow_OnKeyDown"
-        KeyUp="ClientWindow_OnKeyUp">
+        PreviewKeyDown="ClientWindow_OnPreviewKeyDown"
+        PreviewKeyUp="ClientWindow_OnPreviewKeyUp">
     <Grid>
         <Image Name="Image" Stretch="Fill"></Image>
     </Grid>

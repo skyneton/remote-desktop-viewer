@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
@@ -20,6 +21,7 @@ namespace RemoteDesktopViewer
             _networkManager = networkManager;
             InitializeComponent();
         }
+        
 
         internal void DrawScreenChunk(int x, int y, byte[] data)
         {
@@ -61,7 +63,7 @@ namespace RemoteDesktopViewer
 
             Dispatcher.Invoke(() =>
             {
-                _bitmap.WritePixels(rect, pixels, stride, 0);
+                _bitmap?.WritePixels(rect, pixels, stride, 0);
             });
         }
 
@@ -163,19 +165,27 @@ namespace RemoteDesktopViewer
             }
         }
 
-        private void ClientWindow_OnKeyDown(object sender, KeyEventArgs e)
+        private void ClientWindow_OnPreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (!IsActive || !_networkManager.ServerControl) return;
             e.Handled = true;
-            _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.SystemKey),
-                PacketKeyEvent.KeyDown));
+            if(e.Key == Key.ImeProcessed)
+                _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.ImeProcessedKey),
+                    PacketKeyEvent.KeyDown));
+            else
+                _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.Key),
+                    PacketKeyEvent.KeyDown));
         }
 
-        private void ClientWindow_OnKeyUp(object sender, KeyEventArgs e)
+        private void ClientWindow_OnPreviewKeyUp(object sender, KeyEventArgs e)
         {
             if (!IsActive || !_networkManager.ServerControl) return;
             e.Handled = true;
-            _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.Key), PacketKeyEvent.KeyUp));
+            if(e.Key == Key.ImeProcessed)
+                _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.ImeProcessedKey),
+                    PacketKeyEvent.KeyUp));
+            else
+                _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.Key), PacketKeyEvent.KeyUp));
         }
 
         private bool CursorWidthInScreen(MouseEventArgs e)
