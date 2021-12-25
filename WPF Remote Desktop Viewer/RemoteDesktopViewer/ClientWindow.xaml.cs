@@ -173,7 +173,7 @@ namespace RemoteDesktopViewer
         {
             if (!IsActive || !_networkManager.ServerControl) return;
             e.Handled = true;
-            _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.Key),
+            _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.SystemKey),
                 PacketKeyEvent.KeyDown));
         }
 

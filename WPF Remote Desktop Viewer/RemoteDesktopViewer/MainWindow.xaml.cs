@@ -122,9 +122,20 @@ namespace RemoteDesktopViewer
                 if (int.TryParse(address[1], out var temp))
                     port = temp;
 
+            ConnectAsync(ip, port, ClientPassword.Password);
+        }
+
+        private async void ConnectAsync(string ip, int port, string password)
+        {
             try
             {
-                RemoteClient.Instance.Connect(ip, port, ClientPassword.Password).CreateClientWindow().Show();
+                var networkManager = await RemoteClient.Instance.Connect(ip, port, ClientPassword.Password);
+                if (networkManager == null)
+                {
+                    MessageBox.Show("Can't connect or address wrong.");
+                    return;
+                }
+                networkManager.CreateClientWindow().Show();
             }
             catch (Exception err)
             {

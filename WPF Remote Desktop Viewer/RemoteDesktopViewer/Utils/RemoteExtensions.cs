@@ -44,7 +44,7 @@ namespace RemoteDesktopViewer.Utils
         {
             using (var stream = new MemoryStream())
             {
-                using (var zip = new GZipStream(stream, CompressionMode.Compress))
+                using (var zip = new GZipStream(stream, CompressionLevel.Fastest))
                 {
                     zip.Write(input, 0, input.Length);
                     zip.Flush();

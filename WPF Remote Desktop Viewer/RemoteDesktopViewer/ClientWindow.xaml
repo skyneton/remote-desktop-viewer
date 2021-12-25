@@ -14,6 +14,6 @@
         KeyDown="ClientWindow_OnKeyDown"
         KeyUp="ClientWindow_OnKeyUp">
     <Grid>
-        <Image Name="Image" Stretch="Fill"></Image>
+        <Image Name="Image" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"></Image>
     </Grid>
 </Window>

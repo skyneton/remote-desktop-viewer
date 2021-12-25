@@ -1,6 +1,8 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using RemoteDesktopViewer.Network.Packet.Data;
 using RemoteDesktopViewer.Utils;
 
@@ -8,6 +10,7 @@ namespace RemoteDesktopViewer.Network
 {
     public class RemoteClient
     {
+        private const int ConnectTime = 1000;
         internal static RemoteClient Instance { get; private set; } = new RemoteClient();
         public bool IsAvailable { get; private set; }
         
@@ -27,13 +30,41 @@ namespace RemoteDesktopViewer.Network
             _threadFactory.LaunchThread(new Thread(ClientDestroyWorker), false).Name = "Client Destroy Thread";
         }
         
-        internal NetworkManager Connect(string ip, int port, string password)
+        internal async Task<NetworkManager> Connect(string ip, int port, string password)
         {
-            var networkManager = new NetworkManager(new TcpClient(ip, port));
+            var client = await ConnectTimeout(ip, port, ConnectTime);
+            if (client == null)
+                return null;
+            
+            var networkManager = new NetworkManager(client);
             _networkManagers.Add(networkManager);
             networkManager.SendPacket(new PacketLogin(password));
 
             return networkManager;
+        }
+
+        private Task<TcpClient> ConnectTimeout(string ip, int port, int timeout)
+        {
+            return Task.Run(() =>
+            {
+                var client = new TcpClient(AddressFamily.InterNetwork);
+                var result = client.BeginConnect(ip, port, null, null);
+                var connected = result.AsyncWaitHandle.WaitOne(timeout, true);
+                try
+                {
+                    client.EndConnect(result);
+                    if (connected)
+                    {
+                        return client;
+                    }
+                }
+                catch (Exception)
+                {
+                    // ignored
+                }
+
+                return null;
+            });
         }
 
         public void Close()
