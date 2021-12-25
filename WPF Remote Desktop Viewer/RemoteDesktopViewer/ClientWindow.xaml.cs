@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
@@ -29,15 +30,9 @@ namespace RemoteDesktopViewer
             {
                 var image = data.ToBitmapImage();
                 var stride = image.PixelWidth * (image.Format.BitsPerPixel >> 3);
-                var pixels = new byte[image.PixelHeight * stride];
-                image.CopyPixels(pixels, stride, 0);
-
-                _bitmap.Dispatcher.Invoke(() =>
-                {
-                    var destStride = image.PixelWidth * (_bitmap.Format.BitsPerPixel >> 3);
-                    _bitmap.WritePixels(new Int32Rect(x, y, image.PixelWidth, image.PixelHeight), pixels, destStride,
-                        0);
-                });
+                var rect = new Int32Rect(x, y, image.PixelWidth, image.PixelHeight);
+                
+                DrawWritePixels(image, rect, stride);
             }
             catch (Exception err)
             {
@@ -47,9 +42,10 @@ namespace RemoteDesktopViewer
 
         internal void DrawFullScreen(byte[] pixels)
         {
+            var source = pixels.ToBitmapImage();
             Dispatcher.Invoke(() =>
             {
-                _bitmap = new WriteableBitmap(pixels.ToBitmapImage());
+                _bitmap = new WriteableBitmap(source);
                 Image.BeginInit();
                 Image.Source = _bitmap;
                 Image.EndInit();
@@ -59,6 +55,20 @@ namespace RemoteDesktopViewer
             // _width = _image.Width;
             // _height = _image.Height;
             // _graphics.DrawImage(_image, 0, 0, ClientSize.Width, ClientSize.Height);
+        }
+
+        private Task DrawWritePixels(BitmapImage image, Int32Rect rect, int stride)
+        {
+            return Task.Run(() =>
+            {
+                var pixels = new byte[image.PixelHeight * stride];
+                image.CopyPixels(pixels, stride, 0);
+
+                Dispatcher.Invoke(() =>
+                {
+                    _bitmap.WritePixels(rect, pixels, stride, 0);
+                });
+            });
         }
 
         private void ClientWindow_OnClosed(object sender, EventArgs e)
