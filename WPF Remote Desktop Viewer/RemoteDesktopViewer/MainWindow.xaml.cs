@@ -127,12 +127,14 @@ namespace RemoteDesktopViewer
 
         private async void ConnectAsync(string ip, int port, string password)
         {
+            Connect.IsEnabled = false;
             try
             {
                 var networkManager = await RemoteClient.Instance.Connect(ip, port, ClientPassword.Password);
                 if (networkManager == null)
                 {
                     MessageBox.Show("Can't connect or address wrong.");
+                    Connect.IsEnabled = true;
                     return;
                 }
                 networkManager.CreateClientWindow().Show();
@@ -141,6 +143,7 @@ namespace RemoteDesktopViewer
             {
                 MessageBox.Show(err.Message);
             }
+            Connect.IsEnabled = true;
         }
     }
 }

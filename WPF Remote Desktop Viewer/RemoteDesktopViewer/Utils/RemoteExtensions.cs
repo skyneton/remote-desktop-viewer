@@ -44,7 +44,7 @@ namespace RemoteDesktopViewer.Utils
         {
             using (var stream = new MemoryStream())
             {
-                using (var zip = new GZipStream(stream, CompressionLevel.Fastest))
+                using (var zip = new GZipStream(stream, CompressionMode.Compress))
                 {
                     zip.Write(input, 0, input.Length);
                     zip.Flush();
@@ -99,14 +99,6 @@ namespace RemoteDesktopViewer.Utils
                 bitmap.EndInit();
                 bitmap.Freeze();
                 return bitmap;
-            }
-        }
-
-        public static Image ToImage(this byte[] input)
-        {
-            using (var stream = new MemoryStream(input))
-            {
-                return Image.FromStream(stream);
             }
         }
     }

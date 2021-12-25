@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Security.Cryptography;
 using System.Windows;
@@ -12,11 +13,13 @@ namespace RemoteDesktopViewer.Network
     public static class ScreenThreadManager
     {
         private const int ImageSplitSize = 150;
-        private const long Term = 10;
+        private const long Term = 80;
         private static readonly Dictionary<Tuple<int, int>, string> BeforeMd5 = new Dictionary<Tuple<int, int>, string>();
         private static Bitmap _bitmap;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new ConcurrentQueue<NetworkManager>();
         private static long _beforeUpdateTime = TimeManager.CurrentTimeMillis;
+        private static Tuple<int, int> _beforeSize = GetScreenSize();
+        
         internal static void Worker()
         {
             while (RemoteServer.Instance?.IsAvailable ?? false)
@@ -29,6 +32,7 @@ namespace RemoteDesktopViewer.Network
                 _beforeUpdateTime = now;
                 
                 _bitmap = TakeDesktop();
+                SendResizeFullScreen();
                 SendFullScreen();
                 SendScreenChunk();
             }
@@ -45,6 +49,16 @@ namespace RemoteDesktopViewer.Network
                     continue;
                 networkManager.SendPacket(packet);
             }
+        }
+
+        private static void SendResizeFullScreen()
+        {
+            var size = Tuple.Create(_bitmap.Width, _bitmap.Height);
+            if (_beforeSize.Item1 == size.Item1 && _beforeSize.Item2 == size.Item2) return;
+            
+            RemoteServer.Instance?.Broadcast(new PacketScreen(_bitmap));
+            _beforeSize = size;
+            BeforeMd5.Clear();
         }
 
         internal static void SendFullScreen(NetworkManager networkManager)
@@ -100,13 +114,12 @@ namespace RemoteDesktopViewer.Network
 
         private static Bitmap TakeDesktop()
         {
-            var width = SystemParameters.PrimaryScreenWidth;
-            var height = SystemParameters.PrimaryScreenHeight;
-            var bitmap = new Bitmap((int) width, (int) height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            var size = GetScreenSize();
+            var bitmap = new Bitmap(size.Item1, size.Item2, System.Drawing.Imaging.PixelFormat.Format16bppRgb565);
 
             using (var graphics = Graphics.FromImage(bitmap))
             {
-                graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size((int) Math.Ceiling(width), (int) Math.Ceiling(height)));
+                graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(size.Item1, size.Item2));
                 return bitmap;
             }
         }
@@ -117,6 +130,15 @@ namespace RemoteDesktopViewer.Network
             {
                 return Convert.ToBase64String(md5.ComputeHash(input));
             }
+        }
+
+        public static Tuple<int, int> GetScreenSize()
+        {
+            // var scale = SystemParameters.MenuWidth - 18;
+            return Tuple.Create(
+                (int) Math.Round(SystemParameters.PrimaryScreenWidth),
+                (int) Math.Round(SystemParameters.PrimaryScreenHeight)
+            );
         }
     }
     public readonly struct Tuple<T1, T2> {

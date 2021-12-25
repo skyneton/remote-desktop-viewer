@@ -56,8 +56,9 @@ namespace RemoteDesktopViewer.Network.Packet.Data
 
         internal override void Read(NetworkManager networkManager, ByteBuf buf)
         {
-            var posX = (int) (SystemParameters.PrimaryScreenWidth * buf.ReadDouble());
-            var posY = (int) (SystemParameters.PrimaryScreenHeight * buf.ReadDouble());
+            var size = ScreenThreadManager.GetScreenSize();
+            var posX = (int) (size.Item1 * buf.ReadDouble());
+            var posY = (int) (size.Item2 * buf.ReadDouble());
             
             if(networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
                 ServerControl.SetCursorPos(posX, posY);

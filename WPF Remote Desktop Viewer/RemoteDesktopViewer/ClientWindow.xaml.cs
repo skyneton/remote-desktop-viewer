@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Drawing;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
@@ -57,17 +54,14 @@ namespace RemoteDesktopViewer
             // _graphics.DrawImage(_image, 0, 0, ClientSize.Width, ClientSize.Height);
         }
 
-        private Task DrawWritePixels(BitmapImage image, Int32Rect rect, int stride)
+        private void DrawWritePixels(BitmapImage image, Int32Rect rect, int stride)
         {
-            return Task.Run(() =>
-            {
-                var pixels = new byte[image.PixelHeight * stride];
-                image.CopyPixels(pixels, stride, 0);
+            var pixels = new byte[image.PixelHeight * stride];
+            image.CopyPixels(pixels, stride, 0);
 
-                Dispatcher.Invoke(() =>
-                {
-                    _bitmap.WritePixels(rect, pixels, stride, 0);
-                });
+            Dispatcher.Invoke(() =>
+            {
+                _bitmap.WritePixels(rect, pixels, stride, 0);
             });
         }
 

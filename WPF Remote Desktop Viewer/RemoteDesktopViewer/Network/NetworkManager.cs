@@ -11,7 +11,7 @@ namespace RemoteDesktopViewer.Network
 {
     public class NetworkManager
     {
-        public const long KeepAliveTime = 100;
+        public const long KeepAliveTime = 1000;
         private TcpClient _client;
         public bool Connected => _client?.Connected ?? false;
         public bool IsAvailable { get; private set; }
@@ -125,7 +125,7 @@ namespace RemoteDesktopViewer.Network
 
             try
             {
-                _client.GetStream().Write(data, 0, data.Length);
+                _client.GetStream().WriteAsync(data, 0, data.Length);
                 _client.GetStream().Flush();
             
                 LastPacketMillis = TimeManager.CurrentTimeMillis;
