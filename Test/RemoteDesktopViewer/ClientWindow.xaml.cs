@@ -15,6 +15,7 @@ namespace RemoteDesktopViewer
     {
         private WriteableBitmap _bitmap;
         private NetworkManager _networkManager;
+        private Vector _beforePoint = new Vector(0, 0);
 
         public ClientWindow(NetworkManager networkManager)
         {
@@ -70,20 +71,37 @@ namespace RemoteDesktopViewer
             if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
             
 
-            var point = e.GetPosition(this);
-            var pos = new PointF((float) (point.X / RenderSize.Width), (float) (point.Y / RenderSize.Height));
-            _networkManager.SendPacket(new PacketMouseMove(pos));
+            var point = e.GetPosition(Image);
+            _beforePoint = new Vector(point.X / Image.RenderSize.Width, point.Y / Image.RenderSize.Height);
+            _networkManager.SendPacket(new PacketMouseMove(_beforePoint));
         }
 
         private void ClientWindow_OnMouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
+            
+            var point = e.GetPosition(Image);
+            var pos = new Vector(point.X / Image.RenderSize.Width, point.Y / Image.RenderSize.Height);
+            if (Math.Abs(pos.X - _beforePoint.X) > 0.05 || Math.Abs(pos.Y - _beforePoint.Y) > 0.05)
+            {
+                _beforePoint = pos;
+                _networkManager.SendPacket(new PacketMouseMove(pos));
+            }
+            
             _networkManager.SendPacket(new PacketMouseEvent(PacketMouseEvent.Wheel, (uint) e.Delta));
         }
 
         private void ClientWindow_OnMouseDown(object sender, MouseButtonEventArgs e)
         {
             if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
+            
+            var point = e.GetPosition(Image);
+            var pos = new Vector(point.X / Image.RenderSize.Width, point.Y / Image.RenderSize.Height);
+            if (Math.Abs(pos.X - _beforePoint.X) > 0.05 || Math.Abs(pos.Y - _beforePoint.Y) > 0.05)
+            {
+                _beforePoint = pos;
+                _networkManager.SendPacket(new PacketMouseMove(pos));
+            }
 
             switch (e.ChangedButton)
             {
@@ -110,6 +128,14 @@ namespace RemoteDesktopViewer
         private void ClientWindow_OnMouseUp(object sender, MouseButtonEventArgs e)
         {
             if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
+            
+            var point = e.GetPosition(Image);
+            var pos = new Vector(point.X / Image.RenderSize.Width, point.Y / Image.RenderSize.Height);
+            if (Math.Abs(pos.X - _beforePoint.X) > 0.05 || Math.Abs(pos.Y - _beforePoint.Y) > 0.05)
+            {
+                _beforePoint = pos;
+                _networkManager.SendPacket(new PacketMouseMove(pos));
+            }
 
             switch (e.ChangedButton)
             {
@@ -150,10 +176,10 @@ namespace RemoteDesktopViewer
 
         private bool CursorWidthInScreen(MouseEventArgs e)
         {
-            var point = e.GetPosition(this);
+            var point = e.GetPosition(Image);
             return !(point.X < 0 || point.Y < 0 ||
-                     point.X > RenderSize.Width ||
-                     point.Y > RenderSize.Height);
+                     point.X > Image.RenderSize.Width ||
+                     point.Y > Image.RenderSize.Height);
         }
     }
 }

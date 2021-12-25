@@ -39,25 +39,25 @@ namespace RemoteDesktopViewer.Network.Packet.Data
     
     public class PacketMouseMove : Packet
     {
-        private float _percentX, _percentY;
+        private double _percentX, _percentY;
         internal PacketMouseMove() {}
-        public PacketMouseMove(float percentX, float percentY)
+        public PacketMouseMove(double percentX, double percentY)
         {
             _percentX = percentX;
             _percentY = percentY;
         }
-        public PacketMouseMove(PointF pos) : this(pos.X, pos.Y) {}
+        public PacketMouseMove(Vector pos) : this(pos.X, pos.Y) {}
         internal override void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.MouseMove);
-            buf.WriteFloat(_percentX);
-            buf.WriteFloat(_percentY);
+            buf.WriteDouble(_percentX);
+            buf.WriteDouble(_percentY);
         }
 
         internal override void Read(NetworkManager networkManager, ByteBuf buf)
         {
-            var posX = (int) (SystemParameters.PrimaryScreenWidth * buf.ReadFloat());
-            var posY = (int) (SystemParameters.PrimaryScreenHeight * buf.ReadFloat());
+            var posX = (int) (SystemParameters.PrimaryScreenWidth * buf.ReadDouble());
+            var posY = (int) (SystemParameters.PrimaryScreenHeight * buf.ReadDouble());
             
             if(networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
                 ServerControl.SetCursorPos(posX, posY);
@@ -102,7 +102,9 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         internal override void Read(NetworkManager networkManager, ByteBuf buf)
         {
             if (networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
+            {
                 ServerControl.mouse_event(buf.ReadUInt(), 0, 0, buf.ReadUInt(), 0);
+            }
         }
     }
 

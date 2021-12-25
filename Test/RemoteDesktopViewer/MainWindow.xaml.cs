@@ -78,7 +78,7 @@ namespace RemoteDesktopViewer
 
             try
             {
-                new RemoteServer(int.Parse(ServerPort.Text), ServerPassword.Password);
+                new RemoteServer(int.Parse(ServerPort.Text), ServerPassword.Password).UpdateServerControl(ServerControl.IsChecked ?? false);
             }
             catch (SocketException err)
             {
