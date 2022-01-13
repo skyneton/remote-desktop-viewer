@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace RemoteDesktopViewer.Utils
 {
@@ -9,7 +8,7 @@ namespace RemoteDesktopViewer.Utils
         private const double Div = 4.047619047619048;
         public byte[] Data { get; }
         public int Length => Data.Length / 3 * 4;
-
+        
         public NibbleArray(int length)
         {
             Data = new byte[length / 4 * 3 + (length % 4 == 0 ? 0 : 3)];

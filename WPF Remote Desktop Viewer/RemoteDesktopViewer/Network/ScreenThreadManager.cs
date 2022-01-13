@@ -14,11 +14,11 @@ namespace RemoteDesktopViewer.Network
     {
         private const int ImageSplitSize = 150;
         private const long Term = 8;
-        private static readonly Dictionary<Tuple<int, int>, string> BeforeMd5 = new ();
+        private static readonly Dictionary<Utils.Tuple<int, int>, string> BeforeMd5 = new ();
         private static Bitmap _bitmap;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new ();
         private static long _beforeUpdateTime = TimeManager.CurrentTimeMillis;
-        private static Tuple<int, int> _beforeSize = GetScreenSize();
+        private static Utils.Tuple<int, int> _beforeSize = GetScreenSize();
         
         internal static void Worker()
         {
@@ -53,8 +53,8 @@ namespace RemoteDesktopViewer.Network
 
         private static void SendResizeFullScreen()
         {
-            var size = Tuple.Create(_bitmap.Width, _bitmap.Height);
-            if (_beforeSize.Item1 == size.Item1 && _beforeSize.Item2 == size.Item2) return;
+            var size = Utils.Tuple.Create(_bitmap.Width, _bitmap.Height);
+            if (_beforeSize.X == size.X && _beforeSize.Y == size.Y) return;
             
             RemoteServer.Instance?.Broadcast(new PacketScreen(_bitmap));
             _beforeSize = size;
@@ -98,7 +98,7 @@ namespace RemoteDesktopViewer.Network
                     var pixels = split.ToPixelArray();
                     var bytes = new NibbleArray((IReadOnlyList<byte>) pixels).Data;
                     var currentMd5 = ToMd5(bytes);
-                    BeforeMd5.TryGetValue(Tuple.Create(posX, posY), out var beforeMd5);
+                    BeforeMd5.TryGetValue(Utils.Tuple.Create(posX, posY), out var beforeMd5);
 
                     if (currentMd5 == beforeMd5) continue;
                     
@@ -108,9 +108,9 @@ namespace RemoteDesktopViewer.Network
                     });
                     
                     if (string.IsNullOrEmpty(beforeMd5))
-                        BeforeMd5.Add(Tuple.Create(posX, posY), currentMd5);
+                        BeforeMd5.Add(Utils.Tuple.Create(posX, posY), currentMd5);
                     else
-                        BeforeMd5[Tuple.Create(posX, posY)] = currentMd5;
+                        BeforeMd5[Utils.Tuple.Create(posX, posY)] = currentMd5;
                 }
             }
         }
@@ -118,10 +118,10 @@ namespace RemoteDesktopViewer.Network
         private static Bitmap TakeDesktop()
         {
             var size = GetScreenSize();
-            var bitmap = new Bitmap(size.Item1, size.Item2, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            var bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
 
             using var graphics = Graphics.FromImage(bitmap);
-            graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(size.Item1, size.Item2));
+            graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(size.X, size.Y));
             return bitmap;
         }
 
@@ -133,24 +133,13 @@ namespace RemoteDesktopViewer.Network
             }
         }
 
-        public static Tuple<int, int> GetScreenSize()
+        public static Utils.Tuple<int, int> GetScreenSize()
         {
             // var scale = SystemParameters.MenuWidth - 18;
-            return Tuple.Create(
+            return Utils.Tuple.Create(
                 (int) Math.Round(SystemParameters.PrimaryScreenWidth),
                 (int) Math.Round(SystemParameters.PrimaryScreenHeight)
             );
-        }
-    }
-    public readonly struct Tuple<T1, T2> {
-        public readonly T1 Item1;
-        public readonly T2 Item2;
-        public Tuple(T1 item1, T2 item2) { Item1 = item1; Item2 = item2;} 
-    }
-
-    public static class Tuple { // for type-inference goodness.
-        public static Tuple<T1,T2> Create<T1,T2>(T1 item1, T2 item2) { 
-            return new Tuple<T1,T2>(item1, item2); 
         }
     }
 }

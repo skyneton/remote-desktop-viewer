@@ -115,16 +115,14 @@ namespace RemoteDesktopViewer.Utils
 
         public static BitmapImage ToBitmapImage(this byte[] input)
         {
-            using (var stream = new MemoryStream(input))
-            {
-                var bitmap = new BitmapImage();
-                bitmap.BeginInit();
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.StreamSource = stream;
-                bitmap.EndInit();
-                bitmap.Freeze();
-                return bitmap;
-            }
+            using var stream = new MemoryStream(input);
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.StreamSource = stream;
+            bitmap.EndInit();
+            bitmap.Freeze();
+            return bitmap;
         }
 
         public static System.Windows.Media.PixelFormat ToWpfPixelFormat(this PixelFormat format)
