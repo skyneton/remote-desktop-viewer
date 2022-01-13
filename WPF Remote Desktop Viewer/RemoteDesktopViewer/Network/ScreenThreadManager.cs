@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 using System.Windows;
 using RemoteDesktopViewer.Network.Packet.Data;
 using RemoteDesktopViewer.Utils;
@@ -13,10 +13,10 @@ namespace RemoteDesktopViewer.Network
     public static class ScreenThreadManager
     {
         private const int ImageSplitSize = 150;
-        private const long Term = 80;
-        private static readonly Dictionary<Tuple<int, int>, string> BeforeMd5 = new Dictionary<Tuple<int, int>, string>();
+        private const long Term = 8;
+        private static readonly Dictionary<Tuple<int, int>, string> BeforeMd5 = new ();
         private static Bitmap _bitmap;
-        private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new ConcurrentQueue<NetworkManager>();
+        private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new ();
         private static long _beforeUpdateTime = TimeManager.CurrentTimeMillis;
         private static Tuple<int, int> _beforeSize = GetScreenSize();
         
@@ -94,20 +94,23 @@ namespace RemoteDesktopViewer.Network
                     // Marshal.Copy(bitmapData.Scan0, bytes, 0, bytes.Length);
                     // Bitmap.UnlockBits(bitmapData);
 
-                    using (var split = _bitmap.Clone(new Rectangle(posX, posY, width, height), _bitmap.PixelFormat))
+                    using var split = _bitmap.Clone(new Rectangle(posX, posY, width, height), _bitmap.PixelFormat);
+                    var pixels = split.ToPixelArray();
+                    var bytes = new NibbleArray((IReadOnlyList<byte>) pixels).Data;
+                    var currentMd5 = ToMd5(bytes);
+                    BeforeMd5.TryGetValue(Tuple.Create(posX, posY), out var beforeMd5);
+
+                    if (currentMd5 == beforeMd5) continue;
+                    
+                    Task.Run(() =>
                     {
-                        var bytes = split.ToByteArray();
-                        var currentMd5 = ToMd5(bytes);
-                        BeforeMd5.TryGetValue(Tuple.Create<int, int>(posX, posY), out var beforeMd5);
-
-                        if (currentMd5 == beforeMd5) continue;
-
-                        RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, width, height, bytes));
-                        if (string.IsNullOrEmpty(beforeMd5))
-                            BeforeMd5.Add(Tuple.Create(posX, posY), currentMd5);
-                        else
-                            BeforeMd5[Tuple.Create(posX, posY)] = currentMd5;
-                    }
+                        RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, width, height, pixels.Length, bytes));
+                    });
+                    
+                    if (string.IsNullOrEmpty(beforeMd5))
+                        BeforeMd5.Add(Tuple.Create(posX, posY), currentMd5);
+                    else
+                        BeforeMd5[Tuple.Create(posX, posY)] = currentMd5;
                 }
             }
         }
@@ -115,13 +118,11 @@ namespace RemoteDesktopViewer.Network
         private static Bitmap TakeDesktop()
         {
             var size = GetScreenSize();
-            var bitmap = new Bitmap(size.Item1, size.Item2, System.Drawing.Imaging.PixelFormat.Format16bppRgb565);
+            var bitmap = new Bitmap(size.Item1, size.Item2, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
 
-            using (var graphics = Graphics.FromImage(bitmap))
-            {
-                graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(size.Item1, size.Item2));
-                return bitmap;
-            }
+            using var graphics = Graphics.FromImage(bitmap);
+            graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(size.Item1, size.Item2));
+            return bitmap;
         }
 
         private static string ToMd5(byte[] input)

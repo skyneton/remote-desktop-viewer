@@ -10,11 +10,10 @@ namespace RemoteDesktopViewer.Utils
     public class ByteBuf
     {
         private byte[] _readBuf;
-        private readonly List<byte> _buf = new List<byte>();
-
-        public bool Available => _buf.Count > 0;
-        public int Length => _readBuf.Length - Position;
+        private readonly List<byte> _buf = new ();
+        public int Available => ReadLength + WriteLength - Position;
         public int WriteLength => _buf.Count;
+        public int ReadLength => _readBuf?.Length ?? 0;
         public int Position = 0;
 
         public ByteBuf(byte[] data)
@@ -74,13 +73,34 @@ namespace RemoteDesktopViewer.Utils
 
         public int ReadByte()
         {
-            return _readBuf[Position++];
+            return Read(1)[0];
         }
 
         public byte[] Read(int length)
         {
             var buffer = new byte[length];
-            Buffer.BlockCopy(_readBuf, Position, buffer, 0, length);
+            if (Position + length > ReadLength)
+            {
+                var readable = ReadLength - Position;
+                if (readable > 0)
+                {
+                    Buffer.BlockCopy(_readBuf, Position, buffer, 0, readable);
+                    length -= readable;
+                    readable = 0;
+                }
+
+                var offset = ReadLength - Position;
+                Buffer.BlockCopy(_buf.ToArray(), readable * -1, buffer, offset < 0 ? 0 : offset, length);
+                // var pos = _readBuf?.Length ?? 0 - Position;
+                // var target = pos < 0 ? 0 : pos;
+                //
+                // Debug.WriteLine(target);
+                // if(_readBuf != null && target > 0)
+                //     Buffer.BlockCopy(_readBuf, Position, buffer, 0, target);
+                //
+                // Buffer.BlockCopy(_buf.ToArray(), Position + target - _readBuf?.Length ?? 0, buffer,target,length - target);
+            }else
+                Buffer.BlockCopy(_readBuf, Position, buffer, 0, length);
             Position += length;
             
             return buffer;
@@ -88,10 +108,19 @@ namespace RemoteDesktopViewer.Utils
 
         public byte[] Peek(int length)
         {
-            var buffer = new byte[length];
-            Buffer.BlockCopy(_readBuf, Position, buffer, 0, length);
+            var pos = Position;
+            var buffer = Read(length);
+            Position = pos;
             
             return buffer;
+        }
+
+        public int PeekVarInt()
+        {
+            var pos = Position;
+            var result = ReadVarInt();
+            Position = pos;
+            return result;
         }
 
         public bool ReadBool()
@@ -159,6 +188,11 @@ namespace RemoteDesktopViewer.Utils
 
         public void Write(byte[] data, int length)
         {
+            if (length == data.Length)
+            {
+                Write(data);
+                return;
+            }
             var arr = new byte[length];
             Buffer.BlockCopy(data, 0, arr, 0, length);
             _buf.AddRange(arr);

@@ -20,6 +20,8 @@ namespace RemoteDesktopViewer.Network
         
         public ClientWindow ClientWindow { get; private set; }
         public bool ServerControl { get; private set; }
+
+        private NetworkBuf _networkBuf = new NetworkBuf();
         
         internal NetworkManager(TcpClient client)
         {
@@ -56,6 +58,7 @@ namespace RemoteDesktopViewer.Network
         public void Update()
         {
             PacketUpdate();
+            PacketHandleUpdate();
             KeepAliveUpdate();
         }
 
@@ -65,31 +68,117 @@ namespace RemoteDesktopViewer.Network
             SendPacket(new PacketKeepAlive());
         }
         
+        
+        
 
         private void PacketUpdate()
         {
             if (!_client.Connected || _client.Available <= 0) return;
             
             LastPacketMillis = TimeManager.CurrentTimeMillis;
-            
-            var bytes = new byte[ByteBuf.ReadVarInt(_client.GetStream())];
-            var recvByteSizeAcc = _client.GetStream().Read(bytes, 0, bytes.Length);
 
-            while (recvByteSizeAcc != bytes.Length)
+            if (_networkBuf.Buf != null)
             {
-                var recvByteSize = _client.GetStream().Read(bytes, recvByteSizeAcc, bytes.Length - recvByteSizeAcc);
-                recvByteSizeAcc += recvByteSize;
+                _networkBuf.Offset += _client.GetStream().Read(_networkBuf.Buf, _networkBuf.Offset,
+                    _networkBuf.Buf.Length - _networkBuf.Offset);
+                return;
             }
+            
+            _networkBuf.Buf = new byte[ByteBuf.ReadVarInt(_client.GetStream())];
+            _networkBuf.Offset = _client.GetStream().Read(_networkBuf.Buf, 0, _networkBuf.Buf.Length);
+        }
 
+        private void PacketHandleUpdate()
+        {
+            if (_networkBuf.Buf == null || _networkBuf.Offset != _networkBuf.Buf.Length) return;
+            
             try
             {
-                PacketManager.Handle(this, new ByteBuf(bytes));
+                PacketManager.Handle(this, new ByteBuf(_networkBuf.Buf));
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Debug.WriteLine(e);
                 Disconnect();
             }
+
+            _networkBuf.Buf = null;
         }
+        
+
+        /*
+        private void PacketUpdate()
+        {
+            if (!_client.Connected || _client.Available <= 0) return;
+            
+            LastPacketMillis = TimeManager.CurrentTimeMillis;
+
+            var packetSize = 0;
+            if (_networkBuf.Buf != null)
+            {
+                var pos = _networkBuf.Position;
+                packetSize = _networkBuf.ReadVarInt();
+                packetSize = _networkBuf.Available < packetSize ? packetSize - _networkBuf.Available : 0;
+
+                _networkBuf.Position = pos;
+                _networkBuf.Offset += _client.GetStream().Read(_networkBuf.Buf, _networkBuf.Offset,
+                    _networkBuf.Buf.Length - _networkBuf.Offset);
+            }
+            
+            if(packetSize == 0)
+            {
+                packetSize = ByteBuf.ReadVarInt(_client.GetStream());
+                _networkBuf.WriteVarInt(packetSize);
+            }
+            
+            var bytes = new byte[packetSize];
+            var recvByteSizeAcc = _client.GetStream().Read(bytes, 0, bytes.Length);
+            
+            _networkBuf.Write(bytes, recvByteSizeAcc);
+            
+            // while (recvByteSizeAcc != bytes.Length)
+            // {
+            //     var recvByteSize = _client.GetStream().Read(bytes, recvByteSizeAcc, bytes.Length - recvByteSizeAcc);
+            //     recvByteSizeAcc += recvByteSize;
+            // }
+            //
+            // _networkBuf.WriteVarInt(bytes.Length);
+            // _networkBuf.Write(bytes);
+        }
+
+        private void PacketHandleUpdate()
+        {
+            var count = 0;
+            while (_networkBuf.Available > 2)
+            {
+                var pos = _networkBuf.Position;
+                var size = _networkBuf.ReadVarInt();
+                // Debug.WriteLine(size);
+                if (_networkBuf.Available < size)
+                {
+                    // Debug.WriteLine(_networkBuf.Available +", " + size);
+                    _networkBuf.Position = pos;
+                    break;
+                }
+                try
+                {
+                    PacketManager.Handle(this, new ByteBuf(_networkBuf.Read(size)));
+                    count++;
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                    Disconnect();
+                    return;
+                }
+            }
+
+            if (count > 0)
+            {
+                _networkBuf = new ByteBuf(_networkBuf.Read(_networkBuf.Available));
+            }
+        }
+        */
 
         internal ClientWindow CreateClientWindow()
         {
@@ -126,7 +215,8 @@ namespace RemoteDesktopViewer.Network
             try
             {
                 _client.GetStream().WriteAsync(data, 0, data.Length);
-                _client.GetStream().Flush();
+                // _client.GetStream().Flush();
+                // _client.Client.Send(data);
             
                 LastPacketMillis = TimeManager.CurrentTimeMillis;
             }
@@ -135,5 +225,29 @@ namespace RemoteDesktopViewer.Network
                 _client.Close();
             }
         }
+
+        internal void SendBytes(byte[] packet)
+        {
+            if (!_client.Connected) return;
+
+            try
+            {
+                _client.GetStream().WriteAsync(packet, 0, packet.Length);
+                // _client.GetStream().Flush();
+                // _client.Client.Send(packet);
+            
+                LastPacketMillis = TimeManager.CurrentTimeMillis;
+            }
+            catch (Exception)
+            {
+                _client.Close();
+            }
+        }
+    }
+
+    class NetworkBuf
+    {
+        public byte[] Buf;
+        public int Offset;
     }
 }

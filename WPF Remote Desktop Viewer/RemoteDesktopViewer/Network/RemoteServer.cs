@@ -166,10 +166,15 @@ namespace RemoteDesktopViewer.Network
 
         internal void Broadcast(Packet.Packet packet, bool authenticate = true)
         {
+            var buf = new ByteBuf();
+            packet.Write(buf);
+
+            var data = buf.Flush();
+            
             foreach (var networkManager in _networkManagers)
             {
                 if(authenticate && !networkManager.IsAuthenticate) continue;
-                networkManager.SendPacket(packet);
+                networkManager.SendBytes(data);
             }
         }
     }

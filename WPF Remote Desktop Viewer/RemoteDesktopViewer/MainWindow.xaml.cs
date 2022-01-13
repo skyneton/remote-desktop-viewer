@@ -109,7 +109,7 @@ namespace RemoteDesktopViewer
 
         private void IpAddress_OnPreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Oem1 || e.Key == Key.OemQuestion || e.Key == Key.Oem5 || e.Key == Key.Space)
+            if (e.Key is Key.Oem1 or Key.OemQuestion or Key.Oem5 or Key.Space)
                 e.Handled = true;
         }
 

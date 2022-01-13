@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using RemoteDesktopViewer.Network;
 using RemoteDesktopViewer.Network.Packet.Data;
@@ -13,15 +13,14 @@ namespace RemoteDesktopViewer
     public partial class ClientWindow : Window
     {
         private WriteableBitmap _bitmap;
-        private NetworkManager _networkManager;
-        private Vector _beforePoint = new Vector(0, 0);
+        private readonly NetworkManager _networkManager;
+        private Vector _beforePoint = new (0, 0);
 
         public ClientWindow(NetworkManager networkManager)
         {
             _networkManager = networkManager;
             InitializeComponent();
         }
-        
 
         internal void DrawScreenChunk(int x, int y, byte[] data)
         {
@@ -38,10 +37,25 @@ namespace RemoteDesktopViewer
                 Debug.WriteLine(err);
             }
         }
+        
+
+        internal void DrawScreenChunk(int x, int y, int width, int height, int size, NibbleArray array)
+        {
+            var pixels = array.ToPixelArray(size);
+            
+            var stride = pixels.Length / height;
+            var rect = new Int32Rect(x, y, width, height);
+            
+            Dispatcher.Invoke(() =>
+            {
+                _bitmap?.WritePixels(rect, pixels, stride, 0);
+            });
+        }
 
         internal void DrawFullScreen(byte[] pixels)
         {
             var source = pixels.ToBitmapImage();
+            
             Dispatcher.Invoke(() =>
             {
                 _bitmap = new WriteableBitmap(source);
@@ -56,7 +70,26 @@ namespace RemoteDesktopViewer
             // _graphics.DrawImage(_image, 0, 0, ClientSize.Width, ClientSize.Height);
         }
 
-        private void DrawWritePixels(BitmapImage image, Int32Rect rect, int stride)
+        internal void DrawFullScreen(int width, int height, double dpiX, double dpiY, PixelFormat format, int size, NibbleArray array)
+        {
+            var pixels = array.ToPixelArray(size);
+            
+            Dispatcher.Invoke(() =>
+            {
+                _bitmap = new WriteableBitmap(width, height, dpiX, dpiY, format, BitmapPalettes.WebPaletteTransparent);
+                _bitmap.WritePixels(new Int32Rect(0, 0, width, height), pixels, pixels.Length / height, 0);
+                Image.BeginInit();
+                Image.Source = _bitmap;
+                Image.EndInit();
+            });
+        
+            //
+            // _width = _image.Width;
+            // _height = _image.Height;
+            // _graphics.DrawImage(_image, 0, 0, ClientSize.Width, ClientSize.Height);
+        }
+
+        private void DrawWritePixels(BitmapSource image, Int32Rect rect, int stride)
         {
             var pixels = new byte[image.PixelHeight * stride];
             image.CopyPixels(pixels, stride, 0);
