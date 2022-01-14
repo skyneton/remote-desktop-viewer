@@ -95,16 +95,18 @@ namespace RemoteDesktopViewer.Network
                     // Bitmap.UnlockBits(bitmapData);
 
                     using var split = _bitmap.Clone(new Rectangle(posX, posY, width, height), _bitmap.PixelFormat);
-                    var pixels = split.ToPixelArray();
-                    var bytes = new NibbleArray((IReadOnlyList<byte>) pixels).Data;
+                    // var pixels = split.ToPixelArray();
+                    // var bytes = new NibbleArray((IReadOnlyList<byte>) pixels.Loss()).Data;
+                    var bytes = split.ToByteArray().Compress();
                     var currentMd5 = ToMd5(bytes);
                     BeforeMd5.TryGetValue(Utils.Tuple.Create(posX, posY), out var beforeMd5);
 
                     if (currentMd5 == beforeMd5) continue;
+                    // RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, split));
                     
                     Task.Run(() =>
                     {
-                        RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, width, height, pixels.Length, bytes));
+                        RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, bytes));
                     });
                     
                     if (string.IsNullOrEmpty(beforeMd5))
@@ -118,7 +120,7 @@ namespace RemoteDesktopViewer.Network
         private static Bitmap TakeDesktop()
         {
             var size = GetScreenSize();
-            var bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            var bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format16bppRgb555);
 
             using var graphics = Graphics.FromImage(bitmap);
             graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(size.X, size.Y));

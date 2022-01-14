@@ -24,7 +24,7 @@ namespace RemoteDesktopViewer
 
         private bool _isAlive = true;
         
-        private const long RenderTerm = 5;
+        private const long RenderTerm = 20;
         private static long _beforeRenderTime = TimeManager.CurrentTimeMillis;
 
         public ClientWindow(NetworkManager networkManager)
@@ -52,14 +52,14 @@ namespace RemoteDesktopViewer
         private void ScreenRendering()
         {
             _bitmap.Lock();
-            
+
             foreach (var tuple in _pixelMap.Keys)
             {
                 if (!_pixelMap.TryRemove(tuple, out var data)) continue;
 
                 var stride = data.Pixels.Length / data.Height;
                 var rect = new Int32Rect(tuple.X, tuple.Y, data.Width, data.Height);
-
+                
                 // var pixelPer = stride / data.Width;
                 // for (var y = 0; y < data.Height; y++)
                 // {
@@ -70,15 +70,24 @@ namespace RemoteDesktopViewer
                 //         color |= data.Pixels[ptr + 1] << 8;
                 //         color |= data.Pixels[ptr + 2];
                 //         // *((int*) backBuffer + (tuple.Y + y) * backBufferStride + (tuple.X + x) * 4) = color;
-                //         *((int*) backBuffer + backBufferStride * y + pixelsPerBlock * x) = color;
+                //         var color_data = 255 << 16;
+                //         color_data |= 128 << 8;
+                //         color_data |= 255 << 0;
+                //         unsafe
+                //         {
+                //             *((int*) backBuffer) = color_data;
+                //         }
                 //         // *((byte*) pBackBuffer + 1) = 0;
                 //         // *((byte*) pBackBuffer + 1) = 0;
+                //         backBuffer += pixelsPerBlock;
                 //     }
+                //
+                //     backBuffer += backBufferStride;
                 // }
 
 
                 _bitmap.WritePixels(rect, data.Pixels, stride, 0);
-                _bitmap.AddDirtyRect(rect);
+                _bitmap.AddDirtyRect(new Int32Rect(0, 0, data.Width, data.Height));
             }
 
             _bitmap.Unlock();
@@ -90,9 +99,22 @@ namespace RemoteDesktopViewer
             {
                 var image = data.ToBitmapImage();
                 var stride = image.PixelWidth * (image.Format.BitsPerPixel >> 3);
-                var rect = new Int32Rect(x, y, image.PixelWidth, image.PixelHeight);
+                // var rect = new Int32Rect(x, y, image.PixelWidth, image.PixelHeight);
                 
-                DrawWritePixels(image, rect, stride);
+                var pixels = new byte[image.PixelHeight * stride];
+                image.CopyPixels(pixels, stride, 0);
+                
+                var tuple = Utils.Tuple.Create(x, y);
+                var val = new PixelData()
+                {
+                    Width = image.PixelWidth,
+                    Height = image.PixelHeight,
+                    Pixels = pixels
+                };
+                
+                _pixelMap.AddOrUpdate(tuple, val, (key, oldValue) => val);
+                
+                // DrawWritePixels(image, rect, stride);
             }
             catch (Exception err)
             {
@@ -103,7 +125,7 @@ namespace RemoteDesktopViewer
 
         internal void DrawScreenChunk(int x, int y, int width, int height, int size, NibbleArray array)
         {
-            var pixels = array.ToPixelArray(size);
+            var pixels = array.UnLoss(size, width);
 
             var tuple = Utils.Tuple.Create(x, y);
             var data = new PixelData()
@@ -147,8 +169,9 @@ namespace RemoteDesktopViewer
 
         internal void DrawFullScreen(int width, int height, double dpiX, double dpiY, PixelFormat format, int size, NibbleArray array)
         {
-            var pixels = array.ToPixelArray(size);
+            var pixels = array.UnLoss(size, height);
             _pixelMap.Clear();
+            format = PixelFormats.Bgr24;
             
             Dispatcher.Invoke(() =>
             {
@@ -172,7 +195,10 @@ namespace RemoteDesktopViewer
 
             Dispatcher.Invoke(() =>
             {
+                _bitmap.Lock();
                 _bitmap?.WritePixels(rect, pixels, stride, 0);
+                _bitmap.AddDirtyRect(rect);
+                _bitmap.Unlock();
             });
         }
 

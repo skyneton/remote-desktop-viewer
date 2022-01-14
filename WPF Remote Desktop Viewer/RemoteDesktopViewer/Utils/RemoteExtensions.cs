@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -15,6 +14,8 @@ namespace RemoteDesktopViewer.Utils
 {
     public static class RemoteExtensions
     {
+        private const int LossBlock = 3;
+        
         public static void Remove<T>(this ConcurrentBag<T> data, T target)
         {
             var removeQueue = new Queue<T>();
@@ -72,7 +73,7 @@ namespace RemoteDesktopViewer.Utils
             }
         }
 
-        public static byte[] ToByteArray(this Image image)
+        public static byte[] ToByteArray(this Bitmap image)
         {
             // var bitmapData = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly,
             //     PixelFormat.Format8bppIndexed);
@@ -83,21 +84,26 @@ namespace RemoteDesktopViewer.Utils
             //
             // return bytes;
 
-            using (var stream = new MemoryStream())
-            {
-                image.Save(stream, ImageFormat.Jpeg);
-                return stream.ToArray();
-            }
+            using var stream = new MemoryStream();
+            image.Save(stream, ImageFormat.Jpeg);
+            return stream.ToArray();
         }
 
         public static byte[] ToPixelArray(this Bitmap image)
         {
             var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly,
                 image.PixelFormat);
-            var length = bitmapData.Stride * bitmapData.Height;
 
-            var pixels = new byte[length];
-            Marshal.Copy(bitmapData.Scan0, pixels, 0, length);
+            var pixels = new byte[bitmapData.Width * bitmapData.Height * 3];
+            for (var y = 0; y < bitmapData.Height; y++)
+            {
+                var mem = bitmapData.Scan0 + y * bitmapData.Stride;
+                Marshal.Copy(mem, pixels, y * bitmapData.Width * 3, bitmapData.Width * 3);
+            }
+
+            // var pixels = new byte[bitmapData.Stride * bitmapData.Height];
+            // Marshal.Copy(bitmapData.Scan0, pixels, 0, pixels.Length);
+            
             image.UnlockBits(bitmapData);
 
             return pixels;
@@ -110,7 +116,72 @@ namespace RemoteDesktopViewer.Utils
             {
                 pixels[i] = array[i];
             }
+            // Buffer.BlockCopy((byte[]) array, 0, pixels, 0, size);
             return pixels;
+        }
+
+        public static byte[] UnLoss(this NibbleArray data, int size, int width)
+        {
+            var pixelBlock = size / 3;
+            var result = new byte[size];
+            
+            (result[0], result[1], result[2]) = (data[0], data[1], data[2]);
+            
+            var target = 1;
+            for (var i = 1; i < pixelBlock; i++)
+            {
+                var widthBlock = i % width;
+                
+                var index = i * 3;
+                var dataIndex = target * 3;
+                if (i % LossBlock == 0)
+                {
+                    var before = (i - 1) * 3;
+                    // (result[index], result[index + 1], result[index + 2]) = (result[before], result[before + 1], result[before + 2]);
+                    if (widthBlock == 0)
+                    {
+                        (result[index], result[index + 1], result[index + 2]) = (data[dataIndex], data[dataIndex + 1], data[dataIndex + 2]);
+                        // (result[index], result[index + 1], result[index + 2]) = (result[before], result[before + 1], result[before + 2]);
+                        continue;
+                    }
+                    // if (widthBlock == 1)
+                    // {
+                    //     (result[index], result[index + 1], result[index + 2]) = (data[dataIndex], data[dataIndex + 1], data[dataIndex + 2]);
+                    //     continue;
+                    // }
+                    result[index] = (byte) ((result[before] + data[dataIndex]) / 2);
+                    result[index + 1] = (byte) ((result[before + 1] + data[dataIndex + 1]) / 2);
+                    result[index + 2] = (byte) ((result[before + 2] + data[dataIndex + 2]) / 2);
+                    continue;
+                }
+                (result[index], result[index + 1], result[index + 2]) = (data[dataIndex], data[dataIndex + 1], data[dataIndex + 2]);
+                
+                target++;
+            }
+
+            return result;
+        }
+
+        public static byte[] Loss(this byte[] data)
+        {
+            var pixelBlock = data.Length / 3;
+            var result = new byte[pixelBlock / LossBlock * (LossBlock - 1) * 3 + pixelBlock % LossBlock * 3 + 3];
+
+            (result[0], result[1], result[2]) = (data[0], data[1], data[2]);
+            var target = 1;
+            for (var i = 1; i < pixelBlock; i++)
+            {
+                if (i % LossBlock == 0) continue;
+                
+                var index = target * 3;
+                var dataIndex = i * 3;
+                
+                (result[index], result[index + 1], result[index + 2]) = (data[dataIndex], data[dataIndex + 1], data[dataIndex + 2]);
+                
+                target++;
+            }
+
+            return result;
         }
 
         public static BitmapImage ToBitmapImage(this byte[] input)
@@ -122,6 +193,13 @@ namespace RemoteDesktopViewer.Utils
             bitmap.StreamSource = stream;
             bitmap.EndInit();
             bitmap.Freeze();
+            return bitmap;
+        }
+
+        public static Bitmap ToBitmap(this byte[] input)
+        {
+            using var stream = new MemoryStream(input);
+            var bitmap = new Bitmap(stream);
             return bitmap;
         }
 
