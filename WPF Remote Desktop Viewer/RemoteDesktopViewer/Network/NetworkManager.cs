@@ -77,15 +77,10 @@ namespace RemoteDesktopViewer.Network
             
             LastPacketMillis = TimeManager.CurrentTimeMillis;
 
-            if (_networkBuf.Buf != null)
-            {
-                _networkBuf.Offset += _client.GetStream().Read(_networkBuf.Buf, _networkBuf.Offset,
-                    _networkBuf.Buf.Length - _networkBuf.Offset);
-                return;
-            }
-            
-            _networkBuf.Buf = new byte[ByteBuf.ReadVarInt(_client.GetStream())];
-            _networkBuf.Offset = _client.GetStream().Read(_networkBuf.Buf, 0, _networkBuf.Buf.Length);
+            _networkBuf.Buf ??= new byte[ByteBuf.ReadVarInt(_client.GetStream())];
+
+            _networkBuf.Offset += _client.GetStream().Read(_networkBuf.Buf, _networkBuf.Offset,
+                _networkBuf.Buf.Length - _networkBuf.Offset);
         }
 
         private void PacketHandleUpdate()
