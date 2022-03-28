@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -47,7 +48,7 @@ namespace RemoteDesktopViewer.Utils
         {
             using (var stream = new MemoryStream())
             {
-                using (var zip = new GZipStream(stream, CompressionMode.Compress))
+                using (var zip = new DeflateStream(stream, CompressionMode.Compress))
                 {
                     zip.Write(input, 0, input.Length);
                     zip.Flush();
@@ -61,7 +62,7 @@ namespace RemoteDesktopViewer.Utils
         {
             using (var stream = new MemoryStream(input))
             {
-                using (var zip = new GZipStream(stream, CompressionMode.Decompress))
+                using (var zip = new DeflateStream(stream, CompressionMode.Decompress))
                 {
                     using (var result = new MemoryStream())
                     {
@@ -72,6 +73,78 @@ namespace RemoteDesktopViewer.Utils
                 }
             }
         }
+
+        public static NibbleArray ImageCompress(this byte[] pixels)
+        {
+            var size = pixels.Length;
+            var data = new NibbleArray(size / 3);
+            size /= 3;
+            var pos = 0;
+            for (var i = 0; i < size; i+=3)
+            {
+                var target = i * 3;
+                data[pos++] = (byte) ((pixels[target] + pixels[target + 3] + pixels[target + 6]) / 3);
+                data[pos++] = (byte) ((pixels[target + 1] + pixels[target + 4] + pixels[target + 7]) / 3);
+                data[pos++] = (byte) ((pixels[target + 2] + pixels[target + 5] + pixels[target + 8]) / 3);
+                // data[pos++] = pixels[target];
+                // data[pos++] = pixels[target + 1];
+                // data[pos++] = pixels[target + 2];
+            }
+
+            return data;
+        }
+
+        public static byte[] ImageDecompress(this NibbleArray array, int size)
+        {
+            var data = new byte[size];
+            size = array.Length;
+            size /= 3;
+            // size /= 2;
+            var pos = 0;
+            for (var i = 0; i < size; i++)
+            {
+                var target = i * 3;
+                // var target = i * 2;
+                data[pos++] = array[target];
+                data[pos++] = array[target + 1];
+                data[pos++] = array[target + 2];
+                
+                data[pos++] = array[target];
+                data[pos++] = array[target + 1];
+                data[pos++] = array[target + 2];
+                
+                data[pos++] = array[target];
+                data[pos++] = array[target + 1];
+                data[pos++] = array[target + 2];
+            }
+
+            return data;
+        }
+
+        // internal static void CreateCompactArray(ByteBuf buf, int bitsPerBlock, byte[] array)
+        // {
+        //     ulong buffer = 0;
+        //     var bitIndex = 0;
+        //     buf.WriteVarInt(ChunkSection.Size * bitsPerBlock / 64);
+        //
+        //     for (var i = 0; i < ChunkSection.Size; i++)
+        //     {
+        //         var value = func.Invoke(i);
+        //         buffer |= (ulong) (uint) value << bitIndex;
+        //         var remaining = bitsPerBlock - (64 - bitIndex);
+        //         if (remaining >= 0)
+        //         {
+        //             buf.WriteULong(buffer);
+        //             buffer = (ulong) (value >> (bitsPerBlock - remaining));
+        //             bitIndex = remaining;
+        //         }
+        //         else
+        //             bitIndex += bitsPerBlock;
+        //     }
+        //     
+        //     if(bitIndex > 0)
+        //         buf.WriteULong(buffer);
+        // }
 
         public static byte[] ToByteArray(this Bitmap image)
         {

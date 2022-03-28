@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Net.Sockets;
+using System.Net;
 using System.Text;
 
 namespace RemoteDesktopViewer.Utils
@@ -11,10 +10,10 @@ namespace RemoteDesktopViewer.Utils
     {
         private byte[] _readBuf;
         private readonly List<byte> _buf = new ();
-        public int Available => ReadLength + WriteLength - Position;
+
+        public int Length => _readBuf.Length - Position;
         public int WriteLength => _buf.Count;
-        public int ReadLength => _readBuf?.Length ?? 0;
-        public int Position = 0;
+        public int Position { get; set; }
 
         public ByteBuf(byte[] data)
         {
@@ -22,9 +21,10 @@ namespace RemoteDesktopViewer.Utils
         }
         public ByteBuf() {}
 
-        public static IEnumerable<byte> GetVarInt(int integer)
+        public static byte[] GetVarInt(int integer)
         {
             var buf = new List<byte>();
+            
             while ((integer & -128) != 0)
             {
                 buf.Add((byte) (integer & 127 | 128));
@@ -35,7 +35,7 @@ namespace RemoteDesktopViewer.Utils
             return buf.ToArray();
         }
         
-        public static int ReadVarInt(NetworkStream stream)
+        public static int ReadVarInt(Stream stream)
         {
             var value = 0;
             var size = 0;
@@ -70,37 +70,35 @@ namespace RemoteDesktopViewer.Utils
 
             return value | ((b & 0x7F) << (size * 7));
         }
+        
+        public static int ReadVarInt(byte[] data, out int result)
+        {
+            var value = 0;
+            var size = 0;
+            int b;
+
+            while (((b = data[size]) & 0x80) == 0x80)
+            {
+                value |= (b & 0x7F) << (size++ * 7);
+                if (size > 5)
+                {
+                    throw new IOException("VarInt too long.");
+                }
+            }
+
+            result = value | ((b & 0x7F) << (size * 7));
+            return size + 1;
+        }
 
         public int ReadByte()
         {
-            return Read(1)[0];
+            return _readBuf[Position++];
         }
 
         public byte[] Read(int length)
         {
             var buffer = new byte[length];
-            if (Position + length > ReadLength)
-            {
-                var readable = ReadLength - Position;
-                if (readable > 0)
-                {
-                    Buffer.BlockCopy(_readBuf, Position, buffer, 0, readable);
-                    length -= readable;
-                    readable = 0;
-                }
-
-                var offset = ReadLength - Position;
-                Buffer.BlockCopy(_buf.ToArray(), readable * -1, buffer, offset < 0 ? 0 : offset, length);
-                // var pos = _readBuf?.Length ?? 0 - Position;
-                // var target = pos < 0 ? 0 : pos;
-                //
-                // Debug.WriteLine(target);
-                // if(_readBuf != null && target > 0)
-                //     Buffer.BlockCopy(_readBuf, Position, buffer, 0, target);
-                //
-                // Buffer.BlockCopy(_buf.ToArray(), Position + target - _readBuf?.Length ?? 0, buffer,target,length - target);
-            }else
-                Buffer.BlockCopy(_readBuf, Position, buffer, 0, length);
+            Buffer.BlockCopy(_readBuf, Position, buffer, 0, length);
             Position += length;
             
             return buffer;
@@ -108,19 +106,85 @@ namespace RemoteDesktopViewer.Utils
 
         public byte[] Peek(int length)
         {
-            var pos = Position;
-            var buffer = Read(length);
-            Position = pos;
+            var buffer = new byte[length];
+            Buffer.BlockCopy(_readBuf, Position, buffer, 0, length);
             
             return buffer;
         }
 
-        public int PeekVarInt()
+        public string ReadUtf()
         {
-            var pos = Position;
-            var result = ReadVarInt();
-            Position = pos;
-            return result;
+            //https://stackoverflow.com/questions/26416779/c-sharp-binaryreader-readutf-from-javas-dataoutputstream
+            var length = (ReadByte() << 8) + ReadByte();
+
+            var bytes = Peek(length);
+            var result = new char[length];
+
+            var count = 0;
+            var index = 0;
+            
+            while(count < length)
+            {
+                var b = bytes[count] & 0xff;
+                if (b > 127) break;
+                count++;
+                result[index++] = (char) b;
+            }
+
+            while (count < length)
+            {
+                var b = bytes[count] & 0xff;
+                switch (b >> 4)
+                {
+                    case >= 0 and <= 7:
+                        count++;
+                        result[index++] = (char) b;
+                        break;
+                    case 12: case 13:
+                        count += 2;
+                        if (count > length)
+                        {
+                            Position += count;
+                            throw new IOException("Count too long");
+                        }
+
+                        int b2 = bytes[count - 1];
+                        if ((b2 & 0xC0) != 0x80)
+                        {
+                            Position += count;
+                            throw new IOException("Malformed Input");
+                        }
+
+                        result[index++] = (char) (((b & 0x1F) << 6) | (b2 & 0x3F));
+                        break;
+                    case 14:
+                        count += 3;
+                        if (count > length)
+                        {
+                            Position += count;
+                            throw new IOException("Count too long");
+                        }
+
+                        b2 = bytes[count - 2];
+                        int b3 = bytes[count - 1];
+                        if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80))
+                        {
+                            Position += count;
+                            throw new IOException("Malformed Input");
+                        }
+
+                        result[index++] = (char) (((b & 0x0F) << 12) | ((b2 & 0x3F) << 6) | ((b3 & 0x3F) << 0));
+                        break;
+                    default:
+                    {
+                        Position += count;
+                        throw new IOException("Malformed Input");
+                    }
+                }
+            }
+
+            Position += count;
+            return new string(result);
         }
 
         public bool ReadBool()
@@ -146,14 +210,9 @@ namespace RemoteDesktopViewer.Utils
             return value | ((b & 0x7F) << (size * 7));
         }
 
-        public uint ReadUInt()
-        {
-            return BitConverter.ToUInt32(Read(4), 0);
-        }
-
         public int ReadInt()
         {
-            return BitConverter.ToInt32(Read(4), 0);
+            return IPAddress.NetworkToHostOrder(BitConverter.ToInt32(Read(4), 0));
         }
 
         public string ReadString()
@@ -163,22 +222,22 @@ namespace RemoteDesktopViewer.Utils
 
         public long ReadLong()
         {
-            return BitConverter.ToInt64(Read(8), 0);
+            return IPAddress.NetworkToHostOrder(BitConverter.ToInt64(Read(8), 0));
         }
 
         public short ReadShort()
         {
-            return BitConverter.ToInt16(Read(2), 0);
+            return IPAddress.NetworkToHostOrder(BitConverter.ToInt16(Read(2), 0));
         }
 
         public float ReadFloat()
         {
-            return BitConverter.ToSingle(Read(4), 0);
+            return BitConverter.ToSingle(NetworkToHostOrder(Read(4)), 0);
         }
 
         public double ReadDouble()
         {
-            return BitConverter.ToDouble(Read(8), 0);
+            return BitConverter.ToDouble(NetworkToHostOrder(Read(8)), 0);
         }
 
         public void Write(IEnumerable<byte> data)
@@ -188,14 +247,75 @@ namespace RemoteDesktopViewer.Utils
 
         public void Write(byte[] data, int length)
         {
-            if (length == data.Length)
-            {
-                Write(data);
-                return;
-            }
             var arr = new byte[length];
             Buffer.BlockCopy(data, 0, arr, 0, length);
             _buf.AddRange(arr);
+        }
+
+        public void WriteUtf(string str)
+        {
+            var stringLength = str.Length;
+            var length = 0;
+            var count = 0;
+            int b;
+
+            for (int i = 0; i < stringLength; i++)
+            {
+                b = str[i];
+                switch (b)
+                {
+                    case >= 0x0001 and <= 0x007F:
+                        length++;
+                        break;
+                    case > 0x07FF:
+                        length += 3;
+                        break;
+                    default:
+                        length += 2;
+                        break;
+                }
+            }
+
+            if (length > 65535)
+                throw new IOException($"String Too long :{length}");
+
+            var arr = new byte[length * 2 + 2];
+            // var arr = new byte[length];
+            arr[count++] = (byte) (((uint) length >> 8) & 0xFF);
+            arr[count++] = (byte) ((uint) length & 0xFF);
+
+            int x = 0;
+            while (x < stringLength)
+            {
+                b = str[x];
+                if (b is not (>= 0x0001 and <= 0x007F))
+                    break;
+                arr[count++] = (byte) b;
+                x++;
+            }
+
+            while (x < stringLength)
+            {
+                b = str[x];
+                switch (b)
+                {
+                    case >= 0x0001 and <= 0x007F:
+                        arr[count++] = (byte) b;
+                        break;
+                    case > 0x07FF:
+                        arr[count++] = (byte) (0xE0 | ((b >> 12) & 0x0F));
+                        arr[count++] = (byte) (0x80 | ((b >> 6) & 0x3F));
+                        arr[count++] = (byte) (0x80 | ((b >> 0) & 0x3F));
+                        break;
+                    default:
+                        arr[count++] = (byte) (0xC0 | ((b >>  6) & 0x1F));
+                        arr[count++] = (byte) (0x80 | ((b >>  0) & 0x3F));
+                        break;
+                }
+                x++;
+            }
+            
+            Write(arr, count);
         }
 
         public void WriteByte(byte b)
@@ -203,14 +323,16 @@ namespace RemoteDesktopViewer.Utils
             _buf.Add(b);
         }
 
-        public void WriteVarInt(int integer)
+        public int WriteVarInt(int integer)
         {
-            _buf.AddRange(GetVarInt(integer));
+            var data = GetVarInt(integer);
+            _buf.AddRange(data);
+            return data.Length;
         }
 
         public void WriteInt(int data)
         {
-            _buf.AddRange(BitConverter.GetBytes(data));
+            _buf.AddRange(BitConverter.GetBytes(IPAddress.HostToNetworkOrder(data)));
         }
 
         public void WriteString(string data)
@@ -222,38 +344,64 @@ namespace RemoteDesktopViewer.Utils
 
         public void WriteShort(short data)
         {
-            _buf.AddRange(BitConverter.GetBytes(data));
+            _buf.AddRange(BitConverter.GetBytes(IPAddress.HostToNetworkOrder(data)));
         }
 
         public void WriteUShort(ushort data)
         {
             _buf.AddRange(BitConverter.GetBytes(data));
-        }
-
-        public void WriteUInt(uint data)
-        {
-            _buf.AddRange(BitConverter.GetBytes(data));
+            // _buf.AddRange(BitConverter.GetBytes(IPAddress.HostToNetworkOrder(data)));
         }
 
         public void WriteBool(bool data)
         {
-            _buf.AddRange(BitConverter.GetBytes(data));
+            _buf.Add((byte) (data ? 1 : 0));
         }
 
         public void WriteDouble(double data)
         {
-            _buf.AddRange(BitConverter.GetBytes(data));
+            _buf.AddRange(HostToNetworkOrder(BitConverter.GetBytes(data)));
         }
 
         public void WriteFloat(float data)
         {
-            _buf.AddRange(BitConverter.GetBytes(data));
-            // buf.AddRange(HostToNetworkOrder(data));
+            _buf.AddRange(HostToNetworkOrder(BitConverter.GetBytes(data)));
         }
 
         public void WriteLong(long data)
         {
-            _buf.AddRange(BitConverter.GetBytes(data));
+            _buf.AddRange(BitConverter.GetBytes(IPAddress.HostToNetworkOrder(data)));
+        }
+
+        public void WriteULong(ulong data)
+        {
+            _buf.AddRange(BitConverter.GetBytes((ulong) IPAddress.HostToNetworkOrder((long) data)));
+        }
+
+        public void WriteLongArray(long[] array)
+        {
+            var size = array.Length;
+            WriteVarInt(size);
+            for(var i = 0; i < size; i++)
+                WriteLong(array[i]);
+        }
+
+        private byte[] HostToNetworkOrder(byte[] d)
+        {
+            if(BitConverter.IsLittleEndian)
+                Array.Reverse(d);
+
+            return d;
+        }
+
+        private byte[] NetworkToHostOrder(byte[] data)
+        {
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(data);
+            }
+            return data;
+            //return BitConverter.ToDouble(data, 0);
         }
 
         public byte[] Flush()

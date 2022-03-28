@@ -17,7 +17,7 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         internal static extern void SetCursorPos(int x, int y);
     }
     
-    public class PacketServerControl : Packet
+    public class PacketServerControl : IPacket
     {
         private bool _control;
         internal PacketServerControl() {}
@@ -25,19 +25,19 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         {
             _control = control;
         }
-        internal override void Write(ByteBuf buf)
+        public void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.ServerControl);
             buf.WriteBool(_control);
         }
 
-        internal override void Read(NetworkManager networkManager, ByteBuf buf)
+        public void Read(NetworkManager networkManager, ByteBuf buf)
         {
             networkManager.UpdateServerControl(buf.ReadBool());
         }
     }
     
-    public class PacketMouseMove : Packet
+    public class PacketMouseMove : IPacket
     {
         private double _percentX, _percentY;
         internal PacketMouseMove() {}
@@ -47,14 +47,14 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             _percentY = percentY;
         }
         public PacketMouseMove(Vector pos) : this(pos.X, pos.Y) {}
-        internal override void Write(ByteBuf buf)
+        public void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.MouseMove);
             buf.WriteDouble(_percentX);
             buf.WriteDouble(_percentY);
         }
 
-        internal override void Read(NetworkManager networkManager, ByteBuf buf)
+        public void Read(NetworkManager networkManager, ByteBuf buf)
         {
             var size = ScreenThreadManager.GetScreenSize();
             var posX = (int) (size.X * buf.ReadDouble());
@@ -65,7 +65,7 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         }
     }
 
-    public class PacketMouseEvent : Packet
+    public class PacketMouseEvent : IPacket
     {
         public const uint LeftButtonDown = 0x02;
         public const uint LeftButtonUp = 0x04;
@@ -93,23 +93,23 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             _data = data;
         }
 
-        internal override void Write(ByteBuf buf)
+        public void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.MouseEvent);
-            buf.WriteUInt(_id);
-            buf.WriteUInt(_data);
+            buf.WriteVarInt((int) _id);
+            buf.WriteVarInt((int) _data);
         }
 
-        internal override void Read(NetworkManager networkManager, ByteBuf buf)
+        public void Read(NetworkManager networkManager, ByteBuf buf)
         {
             if (networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
             {
-                ServerControl.mouse_event(buf.ReadUInt(), 0, 0, buf.ReadUInt(), 0);
+                ServerControl.mouse_event((uint) buf.ReadVarInt(), 0, 0, (uint) buf.ReadVarInt(), 0);
             }
         }
     }
 
-    public class PacketKeyEvent : Packet
+    public class PacketKeyEvent : IPacket
     {
         public const uint KeyDown = 0;
         public const uint KeyUp = 0x02;
@@ -124,17 +124,17 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             _flag = flag;
         }
 
-        internal override void Write(ByteBuf buf)
+        public void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.KeyEvent);
-            buf.WriteUInt(_id);
-            buf.WriteUInt(_flag);
+            buf.WriteVarInt((int) _id);
+            buf.WriteVarInt((int) _flag);
         }
 
-        internal override void Read(NetworkManager networkManager, ByteBuf buf)
+        public void Read(NetworkManager networkManager, ByteBuf buf)
         {
             if(networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
-                ServerControl.keybd_event(buf.ReadUInt(), 0, buf.ReadUInt(), 0);
+                ServerControl.keybd_event((uint) buf.ReadVarInt(), 0, (uint) buf.ReadVarInt(), 0);
         }
     }
 }

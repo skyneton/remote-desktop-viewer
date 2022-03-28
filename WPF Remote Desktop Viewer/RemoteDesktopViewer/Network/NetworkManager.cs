@@ -11,17 +11,20 @@ namespace RemoteDesktopViewer.Network
 {
     public class NetworkManager
     {
-        public const long KeepAliveTime = 1000;
-        private TcpClient _client;
+        private const long KeepAliveTime = 1000;
+        public const bool CompressionEnabled = true;
+        private const int CompressionThreshold = 50;
+        
+        private readonly TcpClient _client;
         public bool Connected => _client?.Connected ?? false;
         public bool IsAvailable { get; private set; }
-        public long LastPacketMillis { get; private set; } = TimeManager.CurrentTimeMillis;
+        private long _lastPacketMillis = TimeManager.CurrentTimeMillis;
         public bool IsAuthenticate { get; private set; }
         
         public ClientWindow ClientWindow { get; private set; }
         public bool ServerControl { get; private set; }
 
-        private NetworkBuf _networkBuf = new NetworkBuf();
+        private NetworkBuf _receiveBuf = new();
         
         internal NetworkManager(TcpClient client)
         {
@@ -29,6 +32,9 @@ namespace RemoteDesktopViewer.Network
             client.SendTimeout = 500;
             client.NoDelay = true;
             _client = client;
+            
+            var so = new StateObject(_client.Client);
+            so.TargetSocket.BeginReceive(so.Buffer, 0, StateObject.BufferSize, SocketFlags.None, ReceiveAsync, so);
         }
 
         public void Disconnect(bool remove = true)
@@ -55,125 +61,92 @@ namespace RemoteDesktopViewer.Network
             ServerControl = control;
         }
 
+        private void ReceiveAsync(IAsyncResult rs)
+        {
+            var so = (StateObject) rs.AsyncState;
+            try
+            {
+                var read = so!.TargetSocket.EndReceive(rs);
+                if (read > 0)
+                {
+                    _lastPacketMillis = TimeManager.CurrentTimeMillis;
+                    
+                    _receiveBuf.Read(so.Buffer, read);
+
+                    var result = _receiveBuf.ReadPacket();
+                    while (result != null)
+                    {
+                        PacketHandle(result);
+                        result = _receiveBuf.ReadPacket();
+                    }
+
+                    so.TargetSocket.BeginReceive(so.Buffer, 0, StateObject.BufferSize, 0, ReceiveAsync, so);
+                }
+
+                else
+                    Disconnect();
+            }
+            catch (Exception)
+            {
+                Disconnect();
+            }
+        }
+
+        private void PacketHandle(byte[] packet)
+        {
+            if (CompressionEnabled)
+                packet = Decompress(packet);
+            
+            try
+            {
+                PacketManager.Handle(this, new ByteBuf(packet));
+            }
+            catch (Exception e)
+            {
+                Disconnect();
+            }
+        }
+
+        private static byte[] Decompress(byte[] buf)
+        {
+            var result = new ByteBuf(buf);
+            var length = result.ReadVarInt();
+
+            var compressed = result.Read(result.Length);
+            if (length == 0)
+                return compressed;
+
+            return compressed.Decompress();
+        }
+
+
+        public static byte[] Compress(ByteBuf buf)
+        {
+            var result = new ByteBuf();
+            if(buf.WriteLength >= CompressionThreshold)
+            {
+                var compressed = buf.GetBytes().Compress();
+                result.WriteVarInt(buf.WriteLength);
+                result.Write(compressed);
+            }else
+            {
+                result.WriteVarInt(0);
+                result.Write(buf.GetBytes());
+            }
+
+            return result.Flush();
+        }
+
         public void Update()
         {
-            PacketUpdate();
-            PacketHandleUpdate();
             KeepAliveUpdate();
         }
 
         private void KeepAliveUpdate()
         {
-            if (TimeManager.CurrentTimeMillis - LastPacketMillis < KeepAliveTime) return;
+            if (TimeManager.CurrentTimeMillis - _lastPacketMillis < KeepAliveTime) return;
             SendPacket(new PacketKeepAlive());
         }
-        
-        
-        
-
-        private void PacketUpdate()
-        {
-            if (!_client.Connected || _client.Available <= 0) return;
-            
-            LastPacketMillis = TimeManager.CurrentTimeMillis;
-
-            _networkBuf.Buf ??= new byte[ByteBuf.ReadVarInt(_client.GetStream())];
-
-            _networkBuf.Offset += _client.GetStream().Read(_networkBuf.Buf, _networkBuf.Offset,
-                _networkBuf.Buf.Length - _networkBuf.Offset);
-        }
-
-        private void PacketHandleUpdate()
-        {
-            if (_networkBuf.Buf == null || _networkBuf.Offset != _networkBuf.Buf.Length) return;
-            
-            try
-            {
-                PacketManager.Handle(this, new ByteBuf(_networkBuf.Buf));
-            }
-            catch (Exception e)
-            {
-                Debug.WriteLine(e);
-                Disconnect();
-            }
-
-            _networkBuf.Buf = null;
-        }
-        
-
-        /*
-        private void PacketUpdate()
-        {
-            if (!_client.Connected || _client.Available <= 0) return;
-            
-            LastPacketMillis = TimeManager.CurrentTimeMillis;
-
-            var packetSize = 0;
-            if (_networkBuf.Buf != null)
-            {
-                var pos = _networkBuf.Position;
-                packetSize = _networkBuf.ReadVarInt();
-                packetSize = _networkBuf.Available < packetSize ? packetSize - _networkBuf.Available : 0;
-
-                _networkBuf.Position = pos;
-                _networkBuf.Offset += _client.GetStream().Read(_networkBuf.Buf, _networkBuf.Offset,
-                    _networkBuf.Buf.Length - _networkBuf.Offset);
-            }
-            
-            if(packetSize == 0)
-            {
-                packetSize = ByteBuf.ReadVarInt(_client.GetStream());
-                _networkBuf.WriteVarInt(packetSize);
-            }
-            
-            var bytes = new byte[packetSize];
-            var recvByteSizeAcc = _client.GetStream().Read(bytes, 0, bytes.Length);
-            
-            _networkBuf.Write(bytes, recvByteSizeAcc);
-            
-            // while (recvByteSizeAcc != bytes.Length)
-            // {
-            //     var recvByteSize = _client.GetStream().Read(bytes, recvByteSizeAcc, bytes.Length - recvByteSizeAcc);
-            //     recvByteSizeAcc += recvByteSize;
-            // }
-            //
-            // _networkBuf.WriteVarInt(bytes.Length);
-            // _networkBuf.Write(bytes);
-        }
-
-        private void PacketHandleUpdate()
-        {
-            var count = 0;
-            while (_networkBuf.Available > 2)
-            {
-                var pos = _networkBuf.Position;
-                var size = _networkBuf.ReadVarInt();
-                // Debug.WriteLine(size);
-                if (_networkBuf.Available < size)
-                {
-                    // Debug.WriteLine(_networkBuf.Available +", " + size);
-                    _networkBuf.Position = pos;
-                    break;
-                }
-                try
-                {
-                    PacketManager.Handle(this, new ByteBuf(_networkBuf.Read(size)));
-                    count++;
-                }
-                catch (Exception e)
-                {
-                    Debug.WriteLine(e);
-                    Disconnect();
-                    return;
-                }
-            }
-
-            if (count > 0)
-            {
-                _networkBuf = new ByteBuf(_networkBuf.Read(_networkBuf.Available));
-            }
-        }
-        */
 
         internal ClientWindow CreateClientWindow()
         {
@@ -198,26 +171,27 @@ namespace RemoteDesktopViewer.Network
             }
         }
 
-        internal void SendPacket(Packet.Packet packet)
+        internal void SendPacket(IPacket packet)
         {
-            if (!_client.Connected) return;
+            if (_client is not {Connected: true}) return;
             
             var buf = new ByteBuf();
             packet.Write(buf);
 
-            var data = buf.Flush();
+            var beforeLength = buf.WriteLength;
+            
+            var data = CompressionEnabled ? Compress(buf) : buf.Flush();
+            
+            Debug.WriteLine($"Before: {beforeLength}, After: {data.Length}");
 
             try
             {
-                _client.GetStream().WriteAsync(data, 0, data.Length);
-                // _client.GetStream().Flush();
-                // _client.Client.Send(data);
-            
-                LastPacketMillis = TimeManager.CurrentTimeMillis;
+                _client.GetStream().Write(data, 0, data.Length);
+                _lastPacketMillis = TimeManager.CurrentTimeMillis;
             }
             catch (Exception)
             {
-                _client.Close();
+                Disconnect();
             }
         }
 
@@ -227,22 +201,28 @@ namespace RemoteDesktopViewer.Network
 
             try
             {
-                _client.GetStream().WriteAsync(packet, 0, packet.Length);
+                _client.GetStream().Write(packet, 0, packet.Length);
                 // _client.GetStream().Flush();
                 // _client.Client.Send(packet);
             
-                LastPacketMillis = TimeManager.CurrentTimeMillis;
+                _lastPacketMillis = TimeManager.CurrentTimeMillis;
             }
             catch (Exception)
             {
                 _client.Close();
             }
         }
-    }
 
-    class NetworkBuf
-    {
-        public byte[] Buf;
-        public int Offset;
+        private class StateObject
+        {
+            public const int BufferSize = 1024 * 4;
+            public readonly byte[] Buffer = new byte[BufferSize];
+            public Socket TargetSocket { get; }
+
+            public StateObject(Socket socket)
+            {
+                TargetSocket = socket;
+            }
+        }
     }
 }

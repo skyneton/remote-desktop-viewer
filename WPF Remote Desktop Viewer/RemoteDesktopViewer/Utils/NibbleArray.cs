@@ -8,7 +8,7 @@ namespace RemoteDesktopViewer.Utils
         private const double Div = 4.047619047619048;
         public byte[] Data { get; }
         // public int Length => Data.Length / 3 * 4;
-        public int Length => Data.Length * 2;
+        public int Length => Data.Length << 1;
         
         public NibbleArray(int length)
         {

@@ -2,14 +2,10 @@
 
 namespace RemoteDesktopViewer.Network.Packet
 {
-    public class Packet
+    public interface IPacket
     {
-        internal virtual void Write(ByteBuf buf)
-        {
-        }
+        void Write(ByteBuf buf);
 
-        internal virtual void Read(NetworkManager networkManager, ByteBuf buf)
-        {
-        }
+        void Read(NetworkManager networkManager, ByteBuf buf);
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Linq;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -11,11 +12,13 @@ namespace RemoteDesktopViewer.Network
 {
     public class RemoteServer
     {
+        private const int ThreadEmptyDelay = 500;
+        private const int ThreadDelay = 50;
+        
         internal static RemoteServer Instance { get; private set; }
         private TcpListener _listener;
         public bool IsAvailable { get; private set; }
-        private readonly ConcurrentBag<NetworkManager> _networkManagers = new ConcurrentBag<NetworkManager>();
-        private readonly ConcurrentQueue<NetworkManager> _destroyNetworks = new ConcurrentQueue<NetworkManager>();
+        private readonly ConcurrentBag<NetworkManager> _networkManagers = new();
 
         private readonly int _port;
         internal string Password { get; private set; }
@@ -24,7 +27,7 @@ namespace RemoteDesktopViewer.Network
 
         public int ClientLength => _networkManagers.Count;
 
-        private readonly ThreadFactory _threadFactory = new ThreadFactory();
+        private readonly ThreadFactory _threadFactory = new();
 
         public bool ServerControl { get; private set; }
 
@@ -69,11 +72,6 @@ namespace RemoteDesktopViewer.Network
             {
                 networkManager?.Close();
             }
-
-            foreach (var networkManager in _destroyNetworks)
-            {
-                networkManager?.Close();
-            }
             
             try {_listener.Stop();}
             catch (Exception)
@@ -100,24 +98,22 @@ namespace RemoteDesktopViewer.Network
                 throw;
             }
 
-            _threadFactory.LaunchThread(new Thread(AcceptSocketWorker), false).Name = "Client Bind Thread";
+            _listener.BeginAcceptTcpClient(AcceptSocket, null);
+            
             _threadFactory.LaunchThread(new Thread(ClientUpdateWorker), false).Name = "Client Update Thread";
-            _threadFactory.LaunchThread(new Thread(ClientDestroyWorker), false).Name = "Client Destroy Thread";
             _threadFactory.LaunchThread(new Thread(ScreenThreadManager.Worker), false).Name = "Screen Thread";
         }
 
-        private void AcceptSocketWorker()
+        private void AcceptSocket(IAsyncResult result)
         {
-            while (IsAvailable)
+            try
             {
-                try
-                {
-                    _networkManagers.Add(new NetworkManager(_listener.AcceptTcpClient()));
-                }
-                catch (Exception)
-                {
-                    // ignored
-                }
+                _networkManagers.Add(new NetworkManager(_listener.EndAcceptTcpClient(result)));
+                _listener.BeginAcceptTcpClient(AcceptSocket, null);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e);
             }
         }
 
@@ -125,51 +121,62 @@ namespace RemoteDesktopViewer.Network
         {
             while (IsAvailable)
             {
-                var currentTimeMillis = TimeManager.CurrentTimeMillis;
-                foreach (var networkManager in _networkManagers)
+                try
                 {
-                    if (!(networkManager?.IsAvailable ?? false))
+                    if (_networkManagers.IsEmpty)
                     {
-                        if(!_destroyNetworks.Contains(networkManager))
-                            _destroyNetworks.Enqueue(networkManager);
+                        Thread.Sleep(ThreadEmptyDelay);
                         continue;
                     }
 
-                    if (!networkManager.Connected ||
-                        currentTimeMillis - networkManager.LastPacketMillis > Timeout)
-                    {
-                        networkManager.Disconnect();
-                        _destroyNetworks.Enqueue(networkManager);
-                        continue;
-                    }
+                    var destroy = new Queue<NetworkManager>();
+                    ClientForEachUpdate(destroy);
+                    ClientForEachDestroy(destroy);
 
-                    networkManager.Update();
+                    Thread.Sleep(ThreadDelay);
+                }
+                catch (Exception)
+                {
+                    //ignored
                 }
             }
         }
+        
 
-        private void ClientDestroyWorker()
+        private void ClientForEachUpdate(Queue<NetworkManager> destroy)
         {
-            while (IsAvailable)
+            foreach (var networkManager in _networkManagers)
             {
-                while (!_destroyNetworks.IsEmpty)
+                if (!(networkManager?.IsAvailable ?? false))
                 {
-                    if(!_destroyNetworks.TryDequeue(out var networkManager)) continue;
-
-                    if (networkManager.Connected)
-                        networkManager.Close();
-                    
-                    _networkManagers.Remove(networkManager);
+                    destroy.Enqueue(networkManager);
+                    continue;
                 }
+                networkManager.Update();
             }
         }
 
-        internal void Broadcast(Packet.Packet packet, bool authenticate = true)
+        private void ClientForEachDestroy(Queue<NetworkManager> destroy)
+        {
+            while(destroy.Count > 0)
+            {
+                var networkManager = destroy.Dequeue();
+            
+                networkManager.Close();
+                _networkManagers.Remove(networkManager);
+            }
+        }
+
+        internal void Broadcast(Packet.IPacket packet, bool authenticate = true)
         {
             var buf = new ByteBuf();
             packet.Write(buf);
 
-            var data = buf.Flush();
+            var beforeLength = buf.WriteLength;
+
+            var data = NetworkManager.CompressionEnabled ? NetworkManager.Compress(buf) : buf.Flush();
+            
+            Debug.WriteLine($"Before: {beforeLength}, After: {data.Length}");
             
             foreach (var networkManager in _networkManagers)
             {

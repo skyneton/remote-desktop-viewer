@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Security.Cryptography;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Windows;
 using RemoteDesktopViewer.Network.Packet.Data;
 using RemoteDesktopViewer.Utils;
@@ -13,28 +13,37 @@ namespace RemoteDesktopViewer.Network
     public static class ScreenThreadManager
     {
         private const int ImageSplitSize = 150;
-        private const long Term = 8;
+        private const int ThreadEmptyDelay = 500;
+        private const int ThreadDelay = 8;
         private static readonly Dictionary<Utils.Tuple<int, int>, string> BeforeMd5 = new ();
         private static Bitmap _bitmap;
-        private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new ();
-        private static long _beforeUpdateTime = TimeManager.CurrentTimeMillis;
+        private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new();
         private static Utils.Tuple<int, int> _beforeSize = GetScreenSize();
         
         internal static void Worker()
         {
             while (RemoteServer.Instance?.IsAvailable ?? false)
             {
-                _bitmap?.Dispose();
-                if (RemoteServer.Instance.ClientLength == 0) continue;
-                
-                var now = TimeManager.CurrentTimeMillis;
-                if(now - _beforeUpdateTime < Term) continue;
-                _beforeUpdateTime = now;
-                
-                _bitmap = TakeDesktop();
-                SendResizeFullScreen();
-                SendFullScreen();
-                SendScreenChunk();
+                try
+                {
+                    _bitmap?.Dispose();
+                    if (RemoteServer.Instance.ClientLength == 0)
+                    {
+                        Thread.Sleep(ThreadEmptyDelay);
+                        continue;
+                    }
+
+                    TakeDesktop();
+                    SendFullScreen();
+                    SendResizeFullScreen();
+                    SendScreenChunk();
+
+                    Thread.Sleep(ThreadDelay);
+                }
+                catch (Exception)
+                {
+                    //ignored
+                }
             }
         }
 
@@ -45,8 +54,7 @@ namespace RemoteDesktopViewer.Network
             var packet = new PacketScreen(_bitmap);
             var size = FullScreenNetworks.Count;
             while(size-- > 0) {
-                if(!FullScreenNetworks.TryDequeue(out var networkManager))
-                    continue;
+                if(!FullScreenNetworks.TryDequeue(out var networkManager)) continue;
                 networkManager.SendPacket(packet);
             }
         }
@@ -81,12 +89,11 @@ namespace RemoteDesktopViewer.Network
                     var posY = y * ImageSplitSize;
                     
                     var width = posX + ImageSplitSize;
-                    var height = posY + ImageSplitSize;
-                    if (width > _bitmap.Width)
-                        width = _bitmap.Width;
-                    if (height > _bitmap.Height)
-                        height = _bitmap.Height;
+                    if (width > _bitmap.Width) width = _bitmap.Width;
                     width -= posX;
+                    
+                    var height = posY + ImageSplitSize;
+                    if (height > _bitmap.Height) height = _bitmap.Height;
                     height -= posY;
 
                     // var bitmapData = Bitmap.LockBits(new Rectangle(posX, posY, width, height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
@@ -96,35 +103,39 @@ namespace RemoteDesktopViewer.Network
 
                     using var split = _bitmap.Clone(new Rectangle(posX, posY, width, height), _bitmap.PixelFormat);
                     // var pixels = split.ToPixelArray();
-                    // var bytes = new NibbleArray((IReadOnlyList<byte>) pixels.Loss()).Data;
-                    var bytes = split.ToByteArray().Compress();
+                    // var bytes = pixels.ImageCompress().Data;
+                    var bytes = split.ToByteArray();
                     var currentMd5 = ToMd5(bytes);
-                    BeforeMd5.TryGetValue(Utils.Tuple.Create(posX, posY), out var beforeMd5);
+
+                    var pos = Utils.Tuple.Create(posX, posY);
+                    BeforeMd5.TryGetValue(pos, out var beforeMd5);
 
                     if (currentMd5 == beforeMd5) continue;
-                    // RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, split));
+                    // RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, width, height, pixels.Length, bytes));
                     
-                    Task.Run(() =>
-                    {
-                        RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, bytes));
-                    });
+                    // Task.Run(() =>
+                    // {
+                    RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, bytes));
+                    // });
                     
                     if (string.IsNullOrEmpty(beforeMd5))
-                        BeforeMd5.Add(Utils.Tuple.Create(posX, posY), currentMd5);
+                        BeforeMd5.Add(pos, currentMd5);
                     else
-                        BeforeMd5[Utils.Tuple.Create(posX, posY)] = currentMd5;
+                        BeforeMd5[pos] = currentMd5;
                 }
             }
         }
 
-        private static Bitmap TakeDesktop()
+        private static void TakeDesktop()
         {
             var size = GetScreenSize();
             var bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format16bppRgb555);
+            // var bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            // var bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format16bppRgb565);
 
             using var graphics = Graphics.FromImage(bitmap);
             graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(size.X, size.Y));
-            return bitmap;
+            _bitmap = bitmap;
         }
 
         private static string ToMd5(byte[] input)

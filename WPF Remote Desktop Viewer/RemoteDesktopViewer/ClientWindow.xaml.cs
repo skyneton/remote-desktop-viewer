@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
@@ -18,37 +17,41 @@ namespace RemoteDesktopViewer
         private WriteableBitmap _bitmap;
         private readonly NetworkManager _networkManager;
         private Vector _beforePoint = new (0, 0);
-        private ConcurrentDictionary<Utils.Tuple<int, int>, PixelData> _pixelMap = new();
+        // private ConcurrentDictionary<Utils.Tuple<int, int>, PixelData> _pixelMap = new();
 
-        private ThreadFactory _factory = new ();
+        // private ThreadFactory _factory = new ();
 
         private bool _isAlive = true;
         
         private const long RenderTerm = 20;
         private static long _beforeRenderTime = TimeManager.CurrentTimeMillis;
 
+        // private event Action<Int32Rect, int, byte[]> _draw;
+
         public ClientWindow(NetworkManager networkManager)
         {
+            // _draw += RenderChunk;
             _networkManager = networkManager;
             InitializeComponent();
 
-            _factory.LaunchThread(new Thread(ScreenRender));
+            // _factory.LaunchThread(new Thread(ScreenRender));
         }
 
-        private void ScreenRender()
-        {
-            while (_isAlive)
-            {
-                if (_bitmap == null || _pixelMap.IsEmpty) continue;
-                
-                // var now = TimeManager.CurrentTimeMillis;
-                // if(now - _beforeRenderTime < RenderTerm) continue;
-                // _beforeRenderTime = now;
+        // private void ScreenRender()
+        // {
+        //     while (_isAlive)
+        //     {
+        //         if (_bitmap == null || _pixelMap.IsEmpty) continue;
+        //         
+        //         // var now = TimeManager.CurrentTimeMillis;
+        //         // if(now - _beforeRenderTime < RenderTerm) continue;
+        //         // _beforeRenderTime = now;
+        //
+        //         Dispatcher.Invoke(ScreenRendering);
+        //     }
+        // }
 
-                Dispatcher.Invoke(ScreenRendering);
-            }
-        }
-
+        /*
         private void ScreenRendering()
         {
             _bitmap.Lock();
@@ -92,6 +95,7 @@ namespace RemoteDesktopViewer
 
             _bitmap.Unlock();
         }
+        */
 
         internal void DrawScreenChunk(int x, int y, byte[] data)
         {
@@ -99,59 +103,100 @@ namespace RemoteDesktopViewer
             {
                 var image = data.ToBitmapImage();
                 var stride = image.PixelWidth * (image.Format.BitsPerPixel >> 3);
-                // var rect = new Int32Rect(x, y, image.PixelWidth, image.PixelHeight);
+                var rect = new Int32Rect(x, y, image.PixelWidth, image.PixelHeight);
                 
                 var pixels = new byte[image.PixelHeight * stride];
                 image.CopyPixels(pixels, stride, 0);
                 
-                var tuple = Utils.Tuple.Create(x, y);
-                var val = new PixelData()
-                {
-                    Width = image.PixelWidth,
-                    Height = image.PixelHeight,
-                    Pixels = pixels
-                };
+                // var tuple = Utils.Tuple.Create(x, y);
+                // var val = new PixelData()
+                // {
+                //     Width = image.PixelWidth,
+                //     Height = image.PixelHeight,
+                //     Pixels = pixels
+                // };
                 
-                _pixelMap.AddOrUpdate(tuple, val, (key, oldValue) => val);
+                // _pixelMap.AddOrUpdate(tuple, val, (key, oldValue) => val);
                 
                 // DrawWritePixels(image, rect, stride);
+                // _draw?.Invoke(new Int32Rect(x, y, image.PixelWidth, image.PixelHeight), stride, pixels);
+                Dispatcher.Invoke(() =>
+                {
+                    _bitmap.Lock();
+                    _bitmap.WritePixels(rect, pixels, stride, 0);
+                    _bitmap.AddDirtyRect(rect);
+                    _bitmap.Unlock();
+                });
             }
             catch (Exception err)
             {
                 Debug.WriteLine(err);
             }
         }
+
+        private void RenderChunk(Int32Rect rect, int stride, byte[] pixels)
+        {
+            _bitmap.WritePixels(rect, pixels, stride, 0);
+            _bitmap.AddDirtyRect(rect);
+        }
+        
+
+        // internal void DrawScreenChunk(int x, int y, int width, int height, int size, byte[] array)
+        // {
+        //     var pixels = array.ImageDecompress(size);
+        //
+        //     var tuple = Utils.Tuple.Create(x, y);
+        //     var data = new PixelData()
+        //     {
+        //         Width = width,
+        //         Height = height,
+        //         Pixels = pixels
+        //     };
+        //     
+        //     _pixelMap.AddOrUpdate(tuple, data, (key, oldValue) => data);
+        //     // var stride = pixels.Length / height;
+        //     // var rect = new Int32Rect(x, y, width, height);
+        //     // Dispatcher.Invoke(() =>
+        //     // {
+        //     //     _bitmap.Lock();
+        //     //     _bitmap.WritePixels(rect, pixels, stride, 0);
+        //     //     _bitmap.AddDirtyRect(rect);
+        //     //     _bitmap.Unlock();
+        //     // });
+        // }
         
 
         internal void DrawScreenChunk(int x, int y, int width, int height, int size, NibbleArray array)
         {
-            var pixels = array.UnLoss(size, width);
+            // var pixels = array.UnLoss(size, width);
+            //var pixels = array.ToPixelArray(size);
+            var pixels = array.ImageDecompress(size);
 
-            var tuple = Utils.Tuple.Create(x, y);
-            var data = new PixelData()
-            {
-                Width = width,
-                Height = height,
-                Pixels = pixels
-            };
-            
-            _pixelMap.AddOrUpdate(tuple, data, (key, oldValue) => data);
-            // var stride = pixels.Length / height;
-            // var rect = new Int32Rect(x, y, width, height);
-            // Dispatcher.Invoke(() =>
+            // var tuple = Utils.Tuple.Create(x, y);
+            // var data = new PixelData()
             // {
-            //     _bitmap.Lock();
-            //     _bitmap.WritePixels(rect, pixels, stride, 0);
-            //     _bitmap.AddDirtyRect(rect);
-            //     _bitmap.Unlock();
-            // });
+            //     Width = width,
+            //     Height = height,
+            //     Pixels = pixels
+            // };
+            
+            //_pixelMap.AddOrUpdate(tuple, data, (key, oldValue) => data);
+            var stride = pixels.Length / height;
+            var rect = new Int32Rect(x, y, width, height);
+            Dispatcher.Invoke(() =>
+            {
+                _bitmap.Lock();
+                _bitmap.WritePixels(rect, pixels, stride, 0);
+                _bitmap.AddDirtyRect(rect);
+                _bitmap.Unlock();
+            });
         }
 
         internal void DrawFullScreen(byte[] pixels)
         {
             var source = pixels.ToBitmapImage();
             
-            _pixelMap.Clear();
+            // _pixelMap.Clear();
             
             Dispatcher.Invoke(() =>
             {
@@ -169,9 +214,10 @@ namespace RemoteDesktopViewer
 
         internal void DrawFullScreen(int width, int height, double dpiX, double dpiY, PixelFormat format, int size, NibbleArray array)
         {
-            var pixels = array.UnLoss(size, height);
-            _pixelMap.Clear();
-            format = PixelFormats.Bgr24;
+            Debug.WriteLine(format);
+            //var pixels = array.UnLoss(size, height);
+            var pixels = array.ImageDecompress(size);
+            // _pixelMap.Clear();
             
             Dispatcher.Invoke(() =>
             {
@@ -205,7 +251,7 @@ namespace RemoteDesktopViewer
         private void ClientWindow_OnClosed(object sender, EventArgs e)
         {
             _isAlive = false;
-            _factory.KillAll();
+            // _factory.KillAll();
             _networkManager?.Disconnect(false);
         }
 

@@ -2,7 +2,7 @@
 
 namespace RemoteDesktopViewer.Network.Packet.Data
 {
-    public class PacketLogin : Packet
+    public class PacketLogin : IPacket
     {
         private string _password;
         internal PacketLogin(){}
@@ -11,13 +11,13 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             _password = password;
         }
 
-        internal override void Write(ByteBuf buf)
+        public void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.Login);
             buf.WriteString(_password);
         }
 
-        internal override void Read(NetworkManager networkManager, ByteBuf buf)
+        public void Read(NetworkManager networkManager, ByteBuf buf)
         {
             networkManager.ServerLogin(buf.ReadString());
         }

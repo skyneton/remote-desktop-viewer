@@ -5,33 +5,33 @@ namespace RemoteDesktopViewer.Utils
 {
     public class ThreadFactory
     {
-        private static readonly ConcurrentQueue<ThreadFactory> _threadFactories = new ConcurrentQueue<ThreadFactory>();
-        private readonly ConcurrentBag<Thread> Threads = new ConcurrentBag<Thread>();
+        private static readonly ConcurrentQueue<ThreadFactory> ThreadFactories = new ConcurrentQueue<ThreadFactory>();
+        private readonly ConcurrentBag<Thread> _threads = new ConcurrentBag<Thread>();
 
         public ThreadFactory()
         {
-            _threadFactories.Enqueue(this);
+            ThreadFactories.Enqueue(this);
         }
 
         public Thread LaunchThread(Thread thread, bool setName = true)
         {
             thread.Start();
             
-            if (Threads == null) return thread;
+            if (_threads == null) return thread;
             
             if(setName)
-                thread.Name = "Thread-" + (Threads.Count - 1);
+                thread.Name = "Thread-" + (_threads.Count - 1);
             
-            Threads.Add(thread);
+            _threads.Add(thread);
 
             return thread;
         }
 
         public void KillAll()
         {
-            if (Threads == null) return;
+            if (_threads == null) return;
             
-            foreach (var thread in Threads)
+            foreach (var thread in _threads)
             {
                 if(thread.IsAlive)
                     thread.Interrupt();
@@ -40,9 +40,9 @@ namespace RemoteDesktopViewer.Utils
 
         public static void Close()
         {
-            while (!_threadFactories.IsEmpty)
+            while (!ThreadFactories.IsEmpty)
             {
-                if(!_threadFactories.TryDequeue(out var factory)) continue;
+                if(!ThreadFactories.TryDequeue(out var factory)) continue;
                 factory.KillAll();
             }
         }

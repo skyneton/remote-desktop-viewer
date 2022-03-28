@@ -7,11 +7,11 @@ namespace RemoteDesktopViewer.Network.Packet
 {
     public class PacketManager
     {
-        private static readonly ReadOnlyDictionary<int, Packet> Packets;
+        private static readonly ReadOnlyDictionary<int, IPacket> Packets;
 
         static PacketManager()
         {
-            var packets = new Dictionary<int, Packet>
+            var packets = new Dictionary<int, IPacket>
             {
                 {(int) PacketType.Disconnect, new PacketDisconnect()},
                 {(int) PacketType.Login, new PacketLogin()},
@@ -22,7 +22,7 @@ namespace RemoteDesktopViewer.Network.Packet
                 {(int) PacketType.MouseEvent, new PacketMouseEvent()},
                 {(int) PacketType.KeyEvent, new PacketKeyEvent()}
             };
-            Packets = new ReadOnlyDictionary<int, Packet>(packets);
+            Packets = new ReadOnlyDictionary<int, IPacket>(packets);
         }
         public static void Handle(NetworkManager networkManager, ByteBuf buf)
         {

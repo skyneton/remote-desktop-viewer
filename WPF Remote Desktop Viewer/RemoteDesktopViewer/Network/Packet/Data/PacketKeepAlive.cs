@@ -2,11 +2,16 @@
 
 namespace RemoteDesktopViewer.Network.Packet.Data
 {
-    public class PacketKeepAlive : Packet
+    public class PacketKeepAlive : IPacket
     {
-        internal override void Write(ByteBuf buf)
+        public void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.KeepAlive);
+        }
+
+        public void Read(NetworkManager networkManager, ByteBuf buf)
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

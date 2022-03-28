@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,23 +12,23 @@ namespace RemoteDesktopViewer.Network
     public class RemoteClient
     {
         private const int ConnectTime = 1000;
-        internal static RemoteClient Instance { get; private set; } = new RemoteClient();
+        private const int ThreadEmptyDelay = 500;
+        private const int ThreadDelay = 50;
+        internal static readonly RemoteClient Instance = new();
         public bool IsAvailable { get; private set; }
         
-        private readonly ConcurrentBag<NetworkManager> _networkManagers = new ConcurrentBag<NetworkManager>();
-        private readonly ConcurrentQueue<NetworkManager> _destroyNetworks = new ConcurrentQueue<NetworkManager>();
+        private readonly ConcurrentBag<NetworkManager> _networkManagers = new();
 
         private const long Timeout = 20 * 1000;
 
         public int ClientLength => _networkManagers.Count;
 
-        private readonly ThreadFactory _threadFactory = new ThreadFactory();
+        private readonly ThreadFactory _threadFactory = new();
 
         private RemoteClient()
         {
             IsAvailable = true;
             _threadFactory.LaunchThread(new Thread(ClientUpdateWorker), false).Name = "Client Update Thread";
-            _threadFactory.LaunchThread(new Thread(ClientDestroyWorker), false).Name = "Client Destroy Thread";
         }
         
         internal async Task<NetworkManager> Connect(string ip, int port, string password)
@@ -78,37 +79,49 @@ namespace RemoteDesktopViewer.Network
         {
             while (IsAvailable)
             {
-                var currentTimeMillis = TimeManager.CurrentTimeMillis;
-                foreach (var networkManager in _networkManagers)
+                try
                 {
-                    if (!(networkManager?.IsAvailable ?? false))
-                        continue;
-
-                    if (!networkManager.Connected || currentTimeMillis - networkManager.LastPacketMillis > Timeout)
+                    if (_networkManagers.IsEmpty)
                     {
-                        networkManager.Disconnect();
-                        _destroyNetworks.Enqueue(networkManager);
+                        Thread.Sleep(ThreadEmptyDelay);
                         continue;
                     }
 
-                    networkManager.Update();
+                    var destroy = new Queue<NetworkManager>();
+                    ClientForEachUpdate(destroy);
+                    ClientForEachDestroy(destroy);
+
+                    Thread.Sleep(ThreadDelay);
+                }
+                catch (Exception)
+                {
+                    //ignored
                 }
             }
         }
+        
 
-        private void ClientDestroyWorker()
+        private void ClientForEachUpdate(Queue<NetworkManager> destroy)
         {
-            while (IsAvailable)
+            foreach (var networkManager in _networkManagers)
             {
-                while (!_destroyNetworks.IsEmpty)
+                if (!(networkManager?.IsAvailable ?? false))
                 {
-                    if(!_destroyNetworks.TryDequeue(out var networkManager)) continue;
-
-                    if (networkManager.Connected)
-                        networkManager.Close();
-                    
-                    _networkManagers.Remove(networkManager);
+                    destroy.Enqueue(networkManager);
+                    continue;
                 }
+                networkManager.Update();
+            }
+        }
+
+        private void ClientForEachDestroy(Queue<NetworkManager> destroy)
+        {
+            while(destroy.Count > 0)
+            {
+                var networkManager = destroy.Dequeue();
+            
+                networkManager.Close();
+                _networkManagers.Remove(networkManager);
             }
         }
     }
