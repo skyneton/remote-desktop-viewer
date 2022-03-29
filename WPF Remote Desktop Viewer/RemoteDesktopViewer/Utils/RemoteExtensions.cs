@@ -108,11 +108,11 @@ namespace RemoteDesktopViewer.Utils
                 data[pos++] = array[target];
                 data[pos++] = array[target + 1];
                 data[pos++] = array[target + 2];
-                
+
                 data[pos++] = array[target];
                 data[pos++] = array[target + 1];
                 data[pos++] = array[target + 2];
-                
+
                 data[pos++] = array[target];
                 data[pos++] = array[target + 1];
                 data[pos++] = array[target + 2];

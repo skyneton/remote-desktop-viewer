@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -17,187 +16,68 @@ namespace RemoteDesktopViewer
         private WriteableBitmap _bitmap;
         private readonly NetworkManager _networkManager;
         private Vector _beforePoint = new (0, 0);
-        // private ConcurrentDictionary<Utils.Tuple<int, int>, PixelData> _pixelMap = new();
-
-        // private ThreadFactory _factory = new ();
-
-        private bool _isAlive = true;
-        
-        private const long RenderTerm = 20;
-        private static long _beforeRenderTime = TimeManager.CurrentTimeMillis;
-
-        // private event Action<Int32Rect, int, byte[]> _draw;
 
         public ClientWindow(NetworkManager networkManager)
         {
-            // _draw += RenderChunk;
             _networkManager = networkManager;
             InitializeComponent();
-
-            // _factory.LaunchThread(new Thread(ScreenRender));
         }
 
-        // private void ScreenRender()
-        // {
-        //     while (_isAlive)
-        //     {
-        //         if (_bitmap == null || _pixelMap.IsEmpty) continue;
-        //         
-        //         // var now = TimeManager.CurrentTimeMillis;
-        //         // if(now - _beforeRenderTime < RenderTerm) continue;
-        //         // _beforeRenderTime = now;
-        //
-        //         Dispatcher.Invoke(ScreenRendering);
-        //     }
-        // }
+        internal void DrawScreenChunk(ByteBuf buf)
+        {
+            var data = new Queue<ImageChunk>();
+            while (buf.Length > 0)
+            {
+                var posX = buf.ReadVarInt();
+                var posY = buf.ReadVarInt();
+                var image = buf.Read(buf.ReadVarInt()).ToBitmapImage();
+                var stride = image.PixelWidth * (image.Format.BitsPerPixel >> 3);
+                var pixels = new byte[image.PixelHeight * stride];
+                image.CopyPixels(pixels, stride, 0);
+                data.Enqueue(new ImageChunk(new Int32Rect(posX, posY, image.PixelWidth, image.PixelHeight), stride, pixels));
+            }
+            
+            Dispatcher.Invoke(() =>
+            {
+                RenderChunkMainThread(data);
+            });
+        }
 
-        /*
-        private void ScreenRendering()
+        internal void DrawScreenChunkCompress(ByteBuf buf)
+        {
+            var data = new Queue<ImageChunk>();
+            while (buf.Length > 0)
+            {
+                var posX = buf.ReadVarInt();
+                var posY = buf.ReadVarInt();
+                var width = buf.ReadVarInt();
+                var height = buf.ReadVarInt();
+                var pixelLength = buf.ReadVarInt();
+                var pixels = new NibbleArray(buf.Read(buf.ReadVarInt())).ImageDecompress(pixelLength);
+                var stride = pixelLength / height;
+                data.Enqueue(new ImageChunk(new Int32Rect(posX, posY, width, height), stride, pixels));
+            }
+
+            Dispatcher.Invoke(() => { RenderChunkMainThread(data); });
+        }
+        
+        private void RenderChunkMainThread(Queue<ImageChunk> queue)
         {
             _bitmap.Lock();
-
-            foreach (var tuple in _pixelMap.Keys)
+            while (queue.Count > 0)
             {
-                if (!_pixelMap.TryRemove(tuple, out var data)) continue;
-
-                var stride = data.Pixels.Length / data.Height;
-                var rect = new Int32Rect(tuple.X, tuple.Y, data.Width, data.Height);
-                
-                // var pixelPer = stride / data.Width;
-                // for (var y = 0; y < data.Height; y++)
-                // {
-                //     for (var x = 0; x < data.Width; x++)
-                //     {
-                //         var ptr = y * stride + x * pixelPer;
-                //         var color = data.Pixels[ptr] << 16;
-                //         color |= data.Pixels[ptr + 1] << 8;
-                //         color |= data.Pixels[ptr + 2];
-                //         // *((int*) backBuffer + (tuple.Y + y) * backBufferStride + (tuple.X + x) * 4) = color;
-                //         var color_data = 255 << 16;
-                //         color_data |= 128 << 8;
-                //         color_data |= 255 << 0;
-                //         unsafe
-                //         {
-                //             *((int*) backBuffer) = color_data;
-                //         }
-                //         // *((byte*) pBackBuffer + 1) = 0;
-                //         // *((byte*) pBackBuffer + 1) = 0;
-                //         backBuffer += pixelsPerBlock;
-                //     }
-                //
-                //     backBuffer += backBufferStride;
-                // }
-
-
-                _bitmap.WritePixels(rect, data.Pixels, stride, 0);
-                _bitmap.AddDirtyRect(new Int32Rect(0, 0, data.Width, data.Height));
+                var chunk = queue.Dequeue();
+                _bitmap.WritePixels(chunk.Rect, chunk.Pixels, chunk.Stride, 0);
+                _bitmap.AddDirtyRect(chunk.Rect);
             }
 
             _bitmap.Unlock();
-        }
-        */
-
-        internal void DrawScreenChunk(int x, int y, byte[] data)
-        {
-            try
-            {
-                var image = data.ToBitmapImage();
-                var stride = image.PixelWidth * (image.Format.BitsPerPixel >> 3);
-                var rect = new Int32Rect(x, y, image.PixelWidth, image.PixelHeight);
-                
-                var pixels = new byte[image.PixelHeight * stride];
-                image.CopyPixels(pixels, stride, 0);
-                
-                // var tuple = Utils.Tuple.Create(x, y);
-                // var val = new PixelData()
-                // {
-                //     Width = image.PixelWidth,
-                //     Height = image.PixelHeight,
-                //     Pixels = pixels
-                // };
-                
-                // _pixelMap.AddOrUpdate(tuple, val, (key, oldValue) => val);
-                
-                // DrawWritePixels(image, rect, stride);
-                // _draw?.Invoke(new Int32Rect(x, y, image.PixelWidth, image.PixelHeight), stride, pixels);
-                Dispatcher.Invoke(() =>
-                {
-                    _bitmap.Lock();
-                    _bitmap.WritePixels(rect, pixels, stride, 0);
-                    _bitmap.AddDirtyRect(rect);
-                    _bitmap.Unlock();
-                });
-            }
-            catch (Exception err)
-            {
-                Debug.WriteLine(err);
-            }
-        }
-
-        private void RenderChunk(Int32Rect rect, int stride, byte[] pixels)
-        {
-            _bitmap.WritePixels(rect, pixels, stride, 0);
-            _bitmap.AddDirtyRect(rect);
-        }
-        
-
-        // internal void DrawScreenChunk(int x, int y, int width, int height, int size, byte[] array)
-        // {
-        //     var pixels = array.ImageDecompress(size);
-        //
-        //     var tuple = Utils.Tuple.Create(x, y);
-        //     var data = new PixelData()
-        //     {
-        //         Width = width,
-        //         Height = height,
-        //         Pixels = pixels
-        //     };
-        //     
-        //     _pixelMap.AddOrUpdate(tuple, data, (key, oldValue) => data);
-        //     // var stride = pixels.Length / height;
-        //     // var rect = new Int32Rect(x, y, width, height);
-        //     // Dispatcher.Invoke(() =>
-        //     // {
-        //     //     _bitmap.Lock();
-        //     //     _bitmap.WritePixels(rect, pixels, stride, 0);
-        //     //     _bitmap.AddDirtyRect(rect);
-        //     //     _bitmap.Unlock();
-        //     // });
-        // }
-        
-
-        internal void DrawScreenChunk(int x, int y, int width, int height, int size, NibbleArray array)
-        {
-            // var pixels = array.UnLoss(size, width);
-            //var pixels = array.ToPixelArray(size);
-            var pixels = array.ImageDecompress(size);
-
-            // var tuple = Utils.Tuple.Create(x, y);
-            // var data = new PixelData()
-            // {
-            //     Width = width,
-            //     Height = height,
-            //     Pixels = pixels
-            // };
-            
-            //_pixelMap.AddOrUpdate(tuple, data, (key, oldValue) => data);
-            var stride = pixels.Length / height;
-            var rect = new Int32Rect(x, y, width, height);
-            Dispatcher.Invoke(() =>
-            {
-                _bitmap.Lock();
-                _bitmap.WritePixels(rect, pixels, stride, 0);
-                _bitmap.AddDirtyRect(rect);
-                _bitmap.Unlock();
-            });
         }
 
         internal void DrawFullScreen(byte[] pixels)
         {
             var source = pixels.ToBitmapImage();
-            
-            // _pixelMap.Clear();
-            
+
             Dispatcher.Invoke(() =>
             {
                 _bitmap = new WriteableBitmap(source);
@@ -205,11 +85,6 @@ namespace RemoteDesktopViewer
                 Image.Source = _bitmap;
                 Image.EndInit();
             });
-
-            //
-            // _width = _image.Width;
-            // _height = _image.Height;
-            // _graphics.DrawImage(_image, 0, 0, ClientSize.Width, ClientSize.Height);
         }
 
         internal void DrawFullScreen(int width, int height, double dpiX, double dpiY, PixelFormat format, int size, NibbleArray array)
@@ -217,7 +92,6 @@ namespace RemoteDesktopViewer
             Debug.WriteLine(format);
             //var pixels = array.UnLoss(size, height);
             var pixels = array.ImageDecompress(size);
-            // _pixelMap.Clear();
             
             Dispatcher.Invoke(() =>
             {
@@ -227,31 +101,10 @@ namespace RemoteDesktopViewer
                 Image.Source = _bitmap;
                 Image.EndInit();
             });
-        
-            //
-            // _width = _image.Width;
-            // _height = _image.Height;
-            // _graphics.DrawImage(_image, 0, 0, ClientSize.Width, ClientSize.Height);
-        }
-
-        private void DrawWritePixels(BitmapSource image, Int32Rect rect, int stride)
-        {
-            var pixels = new byte[image.PixelHeight * stride];
-            image.CopyPixels(pixels, stride, 0);
-
-            Dispatcher.Invoke(() =>
-            {
-                _bitmap.Lock();
-                _bitmap?.WritePixels(rect, pixels, stride, 0);
-                _bitmap.AddDirtyRect(rect);
-                _bitmap.Unlock();
-            });
         }
 
         private void ClientWindow_OnClosed(object sender, EventArgs e)
         {
-            _isAlive = false;
-            // _factory.KillAll();
             _networkManager?.Disconnect(false);
         }
 
@@ -380,9 +233,17 @@ namespace RemoteDesktopViewer
         }
     }
 
-    internal class PixelData
+    internal class ImageChunk
     {
-        public int Width, Height;
-        public byte[] Pixels;
+        public readonly Int32Rect Rect;
+        public readonly int Stride;
+        public readonly byte[] Pixels;
+
+        public ImageChunk(Int32Rect rect, int stride, byte[] pixels)
+        {
+            Rect = rect;
+            Stride = stride;
+            Pixels = pixels;
+        }
     }
 }

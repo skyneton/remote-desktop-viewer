@@ -2,8 +2,10 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using RemoteDesktopViewer.Network.Packet.Data;
 using RemoteDesktopViewer.Utils;
@@ -14,11 +16,11 @@ namespace RemoteDesktopViewer.Network
     {
         private const int ImageSplitSize = 150;
         private const int ThreadEmptyDelay = 500;
-        private const int ThreadDelay = 8;
-        private static readonly Dictionary<Utils.Tuple<int, int>, string> BeforeMd5 = new ();
+        private const int ThreadDelay = 9;
+        private static readonly Dictionary<DoubleKey<int, int>, string> BeforeMd5 = new ();
         private static Bitmap _bitmap;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new();
-        private static Utils.Tuple<int, int> _beforeSize = GetScreenSize();
+        private static DoubleKey<int, int> _beforeSize = GetScreenSize();
         
         internal static void Worker()
         {
@@ -36,7 +38,9 @@ namespace RemoteDesktopViewer.Network
                     TakeDesktop();
                     SendFullScreen();
                     SendResizeFullScreen();
-                    SendScreenChunk();
+                    // ScreenChunkCompress();
+                    ScreenChunk();
+                    // SendScreenChunk();
 
                     Thread.Sleep(ThreadDelay);
                 }
@@ -61,8 +65,8 @@ namespace RemoteDesktopViewer.Network
 
         private static void SendResizeFullScreen()
         {
-            var size = Utils.Tuple.Create(_bitmap.Width, _bitmap.Height);
-            if (_beforeSize.X == size.X && _beforeSize.Y == size.Y) return;
+            var size = new DoubleKey<int, int>(_bitmap.Width, _bitmap.Height);
+            if (_beforeSize == size) return;
             
             RemoteServer.Instance?.Broadcast(new PacketScreen(_bitmap));
             _beforeSize = size;
@@ -74,56 +78,104 @@ namespace RemoteDesktopViewer.Network
             FullScreenNetworks.Enqueue(networkManager);
         }
 
-        private static void SendScreenChunk()
+        private static void ScreenChunk()
         {
-            var sizeX = _bitmap.Width / ImageSplitSize;
-            var sizeY = _bitmap.Height / ImageSplitSize;
-            if (_bitmap.Width % ImageSplitSize != 0) sizeX++;
-            if (_bitmap.Height % ImageSplitSize != 0) sizeY++;
-            
-            for (var y = 0; y < sizeY; y++)
+            using var ms = new MemoryStream();
+            GetSplitAmount(out var sizeX, out var sizeY);
+            for (var x = 0; x < sizeX; x++)
             {
-                for (var x = 0; x < sizeX; x++)
+                for (var y = 0; y < sizeY; y++)
                 {
                     var posX = x * ImageSplitSize;
                     var posY = y * ImageSplitSize;
-                    
-                    var width = posX + ImageSplitSize;
-                    if (width > _bitmap.Width) width = _bitmap.Width;
-                    width -= posX;
-                    
-                    var height = posY + ImageSplitSize;
-                    if (height > _bitmap.Height) height = _bitmap.Height;
-                    height -= posY;
-
-                    // var bitmapData = Bitmap.LockBits(new Rectangle(posX, posY, width, height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
-                    // var bytes = new byte[bitmapData.Stride * bitmapData.Height];
-                    // Marshal.Copy(bitmapData.Scan0, bytes, 0, bytes.Length);
-                    // Bitmap.UnlockBits(bitmapData);
-
-                    using var split = _bitmap.Clone(new Rectangle(posX, posY, width, height), _bitmap.PixelFormat);
-                    // var pixels = split.ToPixelArray();
-                    // var bytes = pixels.ImageCompress().Data;
-                    var bytes = split.ToByteArray();
-                    var currentMd5 = ToMd5(bytes);
-
-                    var pos = Utils.Tuple.Create(posX, posY);
-                    BeforeMd5.TryGetValue(pos, out var beforeMd5);
-
-                    if (currentMd5 == beforeMd5) continue;
-                    // RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, width, height, pixels.Length, bytes));
-                    
-                    // Task.Run(() =>
-                    // {
-                    RemoteServer.Instance?.Broadcast(new PacketScreenChunk(posX, posY, bytes));
-                    // });
-                    
-                    if (string.IsNullOrEmpty(beforeMd5))
-                        BeforeMd5.Add(pos, currentMd5);
-                    else
-                        BeforeMd5[pos] = currentMd5;
+                    GetSize(posX, posY, out var width, out var height);
+                    using var image = GetSplitImage(posX, posY, width, height);
+                    var byteArray = image.ToByteArray();
+                    if (!IsChanged(new DoubleKey<int, int>(x, y), ToMd5(byteArray))) continue;
+                    Write(ms, ByteBuf.GetVarInt(posX));
+                    Write(ms, ByteBuf.GetVarInt(posY));
+                    var length = byteArray.Length;
+                    Write(ms, ByteBuf.GetVarInt(length));
+                    ms.Write(byteArray, 0, length);
                 }
             }
+
+            if (ms.Length <= 0) return;
+            var data = ms.ToArray();
+            Task.Run(() => { RemoteServer.Instance?.Broadcast(new PacketScreenChunk(data)); });
+        }
+
+        private static void ScreenChunkCompress()
+        {
+            using var ms = new MemoryStream();
+            GetSplitAmount(out var sizeX, out var sizeY);
+            for (var x = 0; x < sizeX; x++)
+            {
+                for (var y = 0; y < sizeY; y++)
+                {
+                    var posX = x * ImageSplitSize;
+                    var posY = y * ImageSplitSize;
+                    GetSize(posX, posY, out var width, out var height);
+                    using var image = GetSplitImage(posX, posY, width, height);
+                    var pixels = image.ToPixelArray();
+                    var byteArray = pixels.ImageCompress().Data;
+                    if (!IsChanged(new DoubleKey<int, int>(x, y), ToMd5(byteArray))) continue;
+                    Write(ms, ByteBuf.GetVarInt(posX));
+                    Write(ms, ByteBuf.GetVarInt(posY));
+                    Write(ms, ByteBuf.GetVarInt(width));
+                    Write(ms, ByteBuf.GetVarInt(height));
+                    Write(ms, ByteBuf.GetVarInt(pixels.Length));
+                    var length = byteArray.Length;
+                    Write(ms, ByteBuf.GetVarInt(length));
+                    ms.Write(byteArray, 0, length);
+                }
+            }
+
+            if (ms.Length <= 0) return;
+            var data = ms.ToArray();
+            Task.Run(() => { RemoteServer.Instance?.Broadcast(new PacketScreenChunk(data)); });
+        }
+
+        private static void Write(Stream ms, byte[] arr)
+        {
+            ms.Write(arr, 0, arr.Length);
+        }
+
+        private static Bitmap GetSplitImage(int x, int y, int width, int height)
+        {
+            return _bitmap.Clone(new Rectangle(x, y, width, height), _bitmap.PixelFormat);
+        }
+
+        private static void GetSplitAmount(out int amountX, out int amountY)
+        {
+            amountX = _bitmap.Width / ImageSplitSize;
+            amountY = _bitmap.Height / ImageSplitSize;
+            if (_bitmap.Width % ImageSplitSize != 0) amountX++;
+            if (_bitmap.Height % ImageSplitSize != 0) amountY++;
+        }
+
+        private static void GetSize(int posX, int posY, out int width, out int height)
+        {
+            width = posX + ImageSplitSize;
+            height = posY + ImageSplitSize;
+            if (width > _bitmap.Width) width = _bitmap.Width;
+            if (height > _bitmap.Height) height = _bitmap.Height;
+            width -= posX;
+            height -= posY;
+        }
+
+        private static bool IsChanged(DoubleKey<int, int> pos, string md5)
+        {
+            var result = true;
+            if (BeforeMd5.TryGetValue(pos, out var beforeMd5))
+            {
+                result = !beforeMd5.Equals(md5);
+                BeforeMd5[pos] = md5;
+            }
+            else
+                BeforeMd5.Add(pos, md5);
+
+            return result;
         }
 
         private static void TakeDesktop()
@@ -140,16 +192,14 @@ namespace RemoteDesktopViewer.Network
 
         private static string ToMd5(byte[] input)
         {
-            using (var md5 = MD5.Create())
-            {
-                return Convert.ToBase64String(md5.ComputeHash(input));
-            }
+            using var md5 = MD5.Create();
+            return Convert.ToBase64String(md5.ComputeHash(input));
         }
 
-        public static Utils.Tuple<int, int> GetScreenSize()
+        public static DoubleKey<int, int> GetScreenSize()
         {
             // var scale = SystemParameters.MenuWidth - 18;
-            return Utils.Tuple.Create(
+            return new DoubleKey<int, int>(
                 (int) Math.Round(SystemParameters.PrimaryScreenWidth),
                 (int) Math.Round(SystemParameters.PrimaryScreenHeight)
             );
