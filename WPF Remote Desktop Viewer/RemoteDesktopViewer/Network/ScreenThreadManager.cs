@@ -16,7 +16,7 @@ namespace RemoteDesktopViewer.Network
     {
         private const int ImageSplitSize = 150;
         private const int ThreadEmptyDelay = 500;
-        private const int ThreadDelay = 9;
+        private const int ThreadDelay = 20;
         private static readonly Dictionary<DoubleKey<int, int>, string> BeforeMd5 = new ();
         private static Bitmap _bitmap;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new();

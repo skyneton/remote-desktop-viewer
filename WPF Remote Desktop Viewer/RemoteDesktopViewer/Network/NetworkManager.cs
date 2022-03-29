@@ -101,7 +101,7 @@ namespace RemoteDesktopViewer.Network
             {
                 PacketManager.Handle(this, new ByteBuf(packet));
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Disconnect();
             }
@@ -215,7 +215,7 @@ namespace RemoteDesktopViewer.Network
 
         private class StateObject
         {
-            public const int BufferSize = 1024 * 4;
+            public const int BufferSize = 1024 * 10;
             public readonly byte[] Buffer = new byte[BufferSize];
             public Socket TargetSocket { get; }
 

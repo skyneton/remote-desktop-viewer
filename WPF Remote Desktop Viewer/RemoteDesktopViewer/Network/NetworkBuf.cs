@@ -5,7 +5,7 @@ namespace RemoteDesktopViewer.Network
 {
     public class NetworkBuf
     {
-        private byte[] _buf = new byte[1024 * 6];
+        private byte[] _buf = new byte[1024 * 20];
         private int _offset;
 
         private void Clear()
