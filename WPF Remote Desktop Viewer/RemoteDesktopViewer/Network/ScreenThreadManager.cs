@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,9 +15,12 @@ namespace RemoteDesktopViewer.Network
 {
     public static class ScreenThreadManager
     {
-        private const int ImageSplitSize = 150;
+        private const int MaxWidth = 1920;
+        private const int MaxHeight = 1080;
+        
+        private const int ImageSplitSize = 100;
         private const int ThreadEmptyDelay = 500;
-        private const int ThreadDelay = 20;
+        private const int ThreadDelay = 15;
         private static readonly Dictionary<DoubleKey<int, int>, string> BeforeMd5 = new ();
         private static Bitmap _bitmap;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new();
@@ -70,7 +74,6 @@ namespace RemoteDesktopViewer.Network
             
             RemoteServer.Instance?.Broadcast(new PacketScreen(_bitmap));
             _beforeSize = size;
-            BeforeMd5.Clear();
         }
 
         internal static void SendFullScreen(NetworkManager networkManager)
@@ -180,14 +183,15 @@ namespace RemoteDesktopViewer.Network
 
         private static void TakeDesktop()
         {
+            _bitmap?.Dispose();
             var size = GetScreenSize();
             var bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format16bppRgb555);
             // var bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-            // var bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format16bppRgb565);
+            // using var bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format16bppRgb565);
 
             using var graphics = Graphics.FromImage(bitmap);
             graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(size.X, size.Y));
-            _bitmap = bitmap;
+            _bitmap = new Bitmap(bitmap, Clamp(bitmap.Width, MaxWidth), Clamp(bitmap.Height, MaxHeight));
         }
 
         private static string ToMd5(byte[] input)
@@ -204,5 +208,7 @@ namespace RemoteDesktopViewer.Network
                 (int) Math.Round(SystemParameters.PrimaryScreenHeight)
             );
         }
+
+        private static int Clamp(double value, int max) => (int) (value > max ? max : value);
     }
 }
