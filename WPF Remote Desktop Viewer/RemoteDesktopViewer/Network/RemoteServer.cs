@@ -172,12 +172,8 @@ namespace RemoteDesktopViewer.Network
             var buf = new ByteBuf();
             packet.Write(buf);
 
-            var beforeLength = buf.WriteLength;
-
             var data = NetworkManager.CompressionEnabled ? NetworkManager.Compress(buf) : buf.Flush();
-            
-            Debug.WriteLine($"Before: {beforeLength}, After: {data.Length}");
-            
+
             foreach (var networkManager in _networkManagers)
             {
                 if(authenticate && !networkManager.IsAuthenticate) continue;

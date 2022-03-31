@@ -34,6 +34,24 @@ namespace RemoteDesktopViewer.Utils
             }
         }
         
+        public static void Remove<T>(this Queue<T> data, T target)
+        {
+            var removeQueue = new Queue<T>();
+            while(data.Count > 0)
+            {
+                var item = data.Dequeue();
+                if (item.Equals(target))
+                    break;
+                
+                removeQueue.Enqueue(item);
+            }
+            
+            foreach (var item in removeQueue)
+            {
+                data.Enqueue(item);
+            }
+        }
+        
         public static string ToSha256(this string str)
         {
             using (var sha256 = new SHA256Managed())

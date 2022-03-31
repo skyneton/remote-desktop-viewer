@@ -5,17 +5,27 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using RemoteDesktopViewer.Hook;
 using RemoteDesktopViewer.Network;
 using RemoteDesktopViewer.Network.Packet.Data;
 using RemoteDesktopViewer.Utils;
 
 namespace RemoteDesktopViewer
 {
-    public partial class ClientWindow : Window
+    public partial class ClientWindow
     {
         private WriteableBitmap _bitmap;
         private readonly NetworkManager _networkManager;
         private Vector _beforePoint = new (0, 0);
+
+        private const int ShowRadis = 140;
+        
+        private readonly Queue<Key> _pressedKey = new();
+
+        private bool ControlPressed => _pressedKey.Contains(Key.LeftCtrl) || _pressedKey.Contains(Key.RightCtrl);
+        private bool AltPressed => _pressedKey.Contains(Key.LeftAlt) || _pressedKey.Contains(Key.RightAlt);
+        private bool ShiftPressed => _pressedKey.Contains(Key.LeftShift) || _pressedKey.Contains(Key.RightShift);
+        private bool WinPressed => _pressedKey.Contains(Key.LWin) || _pressedKey.Contains(Key.RWin);
 
         public ClientWindow(NetworkManager networkManager)
         {
@@ -102,20 +112,67 @@ namespace RemoteDesktopViewer
                 Image.EndInit();
             });
         }
+        
+        private void ClientWindow_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            KeyboardManager.SetupHook();
+            KeyboardManager.AddCallback(KeyHookCallback);
+        }
 
+        private bool KeyHookCallback(int code, int wParam, int vkCode)
+        {
+            if (!IsActive || !_networkManager.ServerControl) return false;
+            var key = KeyInterop.KeyFromVirtualKey(vkCode);
+
+            switch (wParam)
+            {
+                case KeyboardManager.KeyDown:
+                    _networkManager.SendPacket(new PacketKeyEvent((byte) vkCode, PacketKeyEvent.KeyDown));
+                    _pressedKey.Enqueue(key);
+                    break;
+                case KeyboardManager.KeyUp:
+                    if (_pressedKey.Contains(key))
+                    {
+                        Debug.WriteLine(key);
+                        _networkManager.SendPacket(new PacketKeyEvent((byte) vkCode, PacketKeyEvent.KeyUp));
+                        _pressedKey.Remove(key);
+                    }
+
+                    break;
+            }
+            return true;
+        }
+        
         private void ClientWindow_OnClosed(object sender, EventArgs e)
         {
+            KeyboardManager.RemoveCallback(KeyHookCallback);
             _networkManager?.Disconnect(false);
         }
 
         private void ClientWindow_OnMouseMove(object sender, MouseEventArgs e)
-        {
+        { 
+            ButtonShow(e.GetPosition(NormalMaxBtn));
             if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
             
 
             var point = e.GetPosition(Image);
             _beforePoint = new Vector(point.X / Image.RenderSize.Width, point.Y / Image.RenderSize.Height);
             _networkManager.SendPacket(new PacketMouseMove(_beforePoint));
+        }
+
+        private void ButtonShow(Point point)
+        {
+            if (Math.Abs(point.X) < ShowRadis && Math.Abs(point.Y) < ShowRadis)
+            {
+                if (NormalMaxBtn.Visibility == Visibility.Hidden)
+                {
+                    NormalMaxBtn.Visibility = Visibility.Visible;
+                }
+
+                return;
+            }
+
+            if (NormalMaxBtn.Visibility == Visibility.Visible) NormalMaxBtn.Visibility = Visibility.Hidden;
         }
 
         private void ClientWindow_OnMouseWheel(object sender, MouseWheelEventArgs e)
@@ -201,35 +258,36 @@ namespace RemoteDesktopViewer
             }
         }
 
-        private void ClientWindow_OnPreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            if (!IsActive || !_networkManager.ServerControl) return;
-            e.Handled = true;
-            if(e.Key == Key.ImeProcessed)
-                _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.ImeProcessedKey),
-                    PacketKeyEvent.KeyDown));
-            else
-                _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.Key),
-                    PacketKeyEvent.KeyDown));
-        }
-
-        private void ClientWindow_OnPreviewKeyUp(object sender, KeyEventArgs e)
-        {
-            if (!IsActive || !_networkManager.ServerControl) return;
-            e.Handled = true;
-            if(e.Key == Key.ImeProcessed)
-                _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.ImeProcessedKey),
-                    PacketKeyEvent.KeyUp));
-            else
-                _networkManager.SendPacket(new PacketKeyEvent((uint) KeyInterop.VirtualKeyFromKey(e.Key), PacketKeyEvent.KeyUp));
-        }
-
         private bool CursorWidthInScreen(MouseEventArgs e)
         {
             var point = e.GetPosition(Image);
             return !(point.X < 0 || point.Y < 0 ||
                      point.X > Image.RenderSize.Width ||
                      point.Y > Image.RenderSize.Height);
+        }
+
+        private void NormalMaxBtn_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (WindowState == WindowState.Maximized)
+            {
+                WindowStyle = WindowStyle.SingleBorderWindow;
+                WindowState = WindowState.Normal;
+                NormalMaxBtn.Content = "Maximize";
+                return;
+            }
+
+            WindowStyle = WindowStyle.None;
+            WindowState = WindowState.Maximized;
+            NormalMaxBtn.Content = "Normal";
+        }
+
+        private void ClientWindow_OnDeactivated(object sender, EventArgs e)
+        {
+            while (_pressedKey.Count > 0)
+            {
+                var key = _pressedKey.Dequeue();
+                _networkManager.SendPacket(new PacketKeyEvent((byte) KeyInterop.VirtualKeyFromKey(key), PacketKeyEvent.KeyUp));
+            }
         }
     }
 

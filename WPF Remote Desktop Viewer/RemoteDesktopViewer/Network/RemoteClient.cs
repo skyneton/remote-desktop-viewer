@@ -11,7 +11,7 @@ namespace RemoteDesktopViewer.Network
 {
     public class RemoteClient
     {
-        private const int ConnectTime = 1000;
+        private const int ConnectTime = 600;
         private const int ThreadEmptyDelay = 500;
         private const int ThreadDelay = 50;
         internal static readonly RemoteClient Instance = new();

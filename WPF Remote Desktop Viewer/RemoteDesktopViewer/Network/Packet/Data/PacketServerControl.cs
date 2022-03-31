@@ -11,7 +11,7 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         [DllImport("user32.dll")]
         internal static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, int dwExtraInfo);
         [DllImport("user32.dll")]
-        internal static extern void keybd_event(uint vk, uint scan, uint flags, uint extraInfo);
+        internal static extern void keybd_event(byte vk, uint scan, int flags, uint extraInfo);
 
         [DllImport("user32.dll")]
         internal static extern void SetCursorPos(int x, int y);
@@ -111,14 +111,14 @@ namespace RemoteDesktopViewer.Network.Packet.Data
 
     public class PacketKeyEvent : IPacket
     {
-        public const uint KeyDown = 0;
-        public const uint KeyUp = 0x02;
+        public const int KeyDown = 0;
+        public const int KeyUp = 0x02;
         
-        private uint _id;
-        private uint _flag;
+        private byte _id;
+        private int _flag;
 
         internal PacketKeyEvent() {}
-        public PacketKeyEvent(uint id, uint flag)
+        public PacketKeyEvent(byte id, int flag)
         {
             _id = id;
             _flag = flag;
@@ -127,14 +127,17 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         public void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.KeyEvent);
-            buf.WriteVarInt((int) _id);
-            buf.WriteVarInt((int) _flag);
+            buf.WriteByte(_id);
+            buf.WriteVarInt(_flag);
         }
 
         public void Read(NetworkManager networkManager, ByteBuf buf)
         {
+            var vk = buf.ReadByte();
+            var flag = buf.ReadVarInt();
+            Debug.WriteLine((flag == KeyUp) + ", " + vk);
             if(networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
-                ServerControl.keybd_event((uint) buf.ReadVarInt(), 0, (uint) buf.ReadVarInt(), 0);
+                ServerControl.keybd_event((byte) vk, 0, flag, 0);
         }
     }
 }

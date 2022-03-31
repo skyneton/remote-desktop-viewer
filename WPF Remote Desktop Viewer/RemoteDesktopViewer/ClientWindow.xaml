@@ -7,13 +7,22 @@
         mc:Ignorable="d"
         Title="ClientWindow" Height="450" Width="800"
         Closed="ClientWindow_OnClosed"
+        Loaded="ClientWindow_OnLoaded"
         MouseMove="ClientWindow_OnMouseMove"
         MouseWheel="ClientWindow_OnMouseWheel"
         MouseDown="ClientWindow_OnMouseDown"
         MouseUp="ClientWindow_OnMouseUp"
-        PreviewKeyDown="ClientWindow_OnPreviewKeyDown"
-        PreviewKeyUp="ClientWindow_OnPreviewKeyUp">
+        Deactivated="ClientWindow_OnDeactivated">
+        <!-- PreviewKeyDown="ClientWindow_OnPreviewKeyDown" -->
+        <!-- PreviewKeyUp="ClientWindow_OnPreviewKeyUp"> -->
     <Grid>
         <Image Name="Image" Stretch="Fill"></Image>
+        <Button
+            Name="NormalMaxBtn"
+            Height="20"
+            Width="80"
+            VerticalAlignment="Top"
+            Visibility="Hidden"
+            Click="NormalMaxBtn_OnClick">Maximize</Button>
     </Grid>
 </Window>

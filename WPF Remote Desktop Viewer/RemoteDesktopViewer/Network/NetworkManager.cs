@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Windows;
+using System.Windows.Input;
 using RemoteDesktopViewer.Network.Packet;
 using RemoteDesktopViewer.Network.Packet.Data;
 using RemoteDesktopViewer.Utils;
@@ -25,7 +25,7 @@ namespace RemoteDesktopViewer.Network
         public bool ServerControl { get; private set; }
 
         private NetworkBuf _receiveBuf = new();
-        
+
         internal NetworkManager(TcpClient client)
         {
             IsAvailable = true;
@@ -37,7 +37,7 @@ namespace RemoteDesktopViewer.Network
             so.TargetSocket.BeginReceive(so.Buffer, 0, StateObject.BufferSize, SocketFlags.None, ReceiveAsync, so);
         }
 
-        public void Disconnect(bool remove = true)
+        public void Disconnect(bool showMessage, bool remove = true)
         {
             IsAvailable = false;
             if (remove && ClientWindow != null)
@@ -84,12 +84,39 @@ namespace RemoteDesktopViewer.Network
                 }
 
                 else
-                    Disconnect();
+                    Disconnect(true);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                Disconnect();
+                SocketExceptionCheck(e);
             }
+        }
+
+        private void SocketExceptionCheck(Exception e)
+        {
+            while (true)
+            {
+                if (e.InnerException != null)
+                {
+                    e = e.InnerException;
+                    continue;
+                }
+
+                if (_client is not {Connected: true}) return;
+                if (e is SocketException exception)
+                {
+                    if (exception.ErrorCode == 10053 || exception.SocketErrorCode == SocketError.Disconnecting || _client is not {Connected: true}) return;
+
+                    MessageBox.Show(e.ToString());
+                }
+                else if (e is not InvalidOperationException && e is not NullReferenceException && e is not ObjectDisposedException)
+                {
+                    MessageBox.Show(e.ToString());
+                }
+
+                break;
+            }
+            Disconnect(false);
         }
 
         private void PacketHandle(byte[] packet)
@@ -101,9 +128,9 @@ namespace RemoteDesktopViewer.Network
             {
                 PacketManager.Handle(this, new ByteBuf(packet));
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                Disconnect();
+                SocketExceptionCheck(e);
             }
         }
 
@@ -167,7 +194,7 @@ namespace RemoteDesktopViewer.Network
             else
             {
                 SendPacket(new PacketDisconnect("Password error."));
-                Disconnect();
+                Disconnect(false);
             }
         }
 
@@ -178,11 +205,7 @@ namespace RemoteDesktopViewer.Network
             var buf = new ByteBuf();
             packet.Write(buf);
 
-            var beforeLength = buf.WriteLength;
-            
             var data = CompressionEnabled ? Compress(buf) : buf.Flush();
-            
-            Debug.WriteLine($"Before: {beforeLength}, After: {data.Length}");
 
             try
             {
@@ -191,7 +214,7 @@ namespace RemoteDesktopViewer.Network
             }
             catch (Exception)
             {
-                Disconnect();
+                Disconnect(false);
             }
         }
 

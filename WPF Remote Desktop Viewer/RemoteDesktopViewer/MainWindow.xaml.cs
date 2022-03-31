@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using RemoteDesktopViewer.Hook;
 using RemoteDesktopViewer.Network;
 using RemoteDesktopViewer.Utils;
 
@@ -46,6 +47,7 @@ namespace RemoteDesktopViewer
 
         private void MainWindow_OnClosing(object sender, CancelEventArgs e)
         {
+            KeyboardManager.ShutdownHook();
             if (RemoteServer.Instance?.IsAvailable ?? false)
             {
                 MessageBox.Show(FormCloseServerAlive);
@@ -130,7 +132,7 @@ namespace RemoteDesktopViewer
             Connect.IsEnabled = false;
             try
             {
-                var networkManager = await RemoteClient.Instance.Connect(ip, port, ClientPassword.Password);
+                var networkManager = await RemoteClient.Instance.Connect(ip, port, password);
                 if (networkManager == null)
                 {
                     MessageBox.Show("Can't connect or address wrong.");
