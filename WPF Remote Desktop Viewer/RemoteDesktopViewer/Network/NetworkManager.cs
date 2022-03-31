@@ -37,17 +37,11 @@ namespace RemoteDesktopViewer.Network
             so.TargetSocket.BeginReceive(so.Buffer, 0, StateObject.BufferSize, SocketFlags.None, ReceiveAsync, so);
         }
 
-        public void Disconnect(bool showMessage, bool remove = true)
+        public void Disconnect(bool remove = true)
         {
             IsAvailable = false;
             if (remove && ClientWindow != null)
-            {
-                MainWindow.Instance?.InvokeAction(() =>
-                {
-                    MessageBox.Show($@"{ClientWindow?.Title} server closed.");
-                    ClientWindow?.Close();
-                });
-            }
+                MainWindow.Instance?.InvokeAction(ClientWindow.Close);
         }
 
         public void Close()
@@ -84,7 +78,10 @@ namespace RemoteDesktopViewer.Network
                 }
 
                 else
-                    Disconnect(true);
+                {
+                    if (ClientWindow != null) MainWindow.Instance?.InvokeAction(() => MessageBox.Show($@"{ClientWindow?.Title} server closed."));
+                    Disconnect();
+                }
             }
             catch (Exception e)
             {
@@ -103,20 +100,12 @@ namespace RemoteDesktopViewer.Network
                 }
 
                 if (_client is not {Connected: true}) return;
-                if (e is SocketException exception)
-                {
-                    if (exception.ErrorCode == 10053 || exception.SocketErrorCode == SocketError.Disconnecting || _client is not {Connected: true}) return;
-
-                    MessageBox.Show(e.ToString());
-                }
-                else if (e is not InvalidOperationException && e is not NullReferenceException && e is not ObjectDisposedException)
-                {
-                    MessageBox.Show(e.ToString());
-                }
+                    if (ClientWindow != null) MainWindow.Instance?.InvokeAction(() => MessageBox.Show(e.Message));
+                
+                Disconnect();
 
                 break;
             }
-            Disconnect(false);
         }
 
         private void PacketHandle(byte[] packet)
@@ -194,7 +183,7 @@ namespace RemoteDesktopViewer.Network
             else
             {
                 SendPacket(new PacketDisconnect("Password error."));
-                Disconnect(false);
+                Disconnect();
             }
         }
 
@@ -212,9 +201,10 @@ namespace RemoteDesktopViewer.Network
                 _client.GetStream().Write(data, 0, data.Length);
                 _lastPacketMillis = TimeManager.CurrentTimeMillis;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                Disconnect(false);
+                if (ClientWindow != null) MainWindow.Instance?.InvokeAction(() => MessageBox.Show(e.Message));
+                Disconnect();
             }
         }
 

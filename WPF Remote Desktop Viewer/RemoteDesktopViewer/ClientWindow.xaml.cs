@@ -146,7 +146,7 @@ namespace RemoteDesktopViewer
         private void ClientWindow_OnClosed(object sender, EventArgs e)
         {
             KeyboardManager.RemoveCallback(KeyHookCallback);
-            _networkManager?.Disconnect(false);
+            _networkManager?.Disconnect();
         }
 
         private void ClientWindow_OnMouseMove(object sender, MouseEventArgs e)

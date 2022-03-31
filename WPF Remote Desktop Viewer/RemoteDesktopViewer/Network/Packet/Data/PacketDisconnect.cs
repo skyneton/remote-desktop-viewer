@@ -21,7 +21,7 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         public void Read(NetworkManager networkManager, ByteBuf buf)
         {
             MessageBox.Show(buf.ReadString());
-            networkManager.Disconnect(false);
+            networkManager.Disconnect();
         }
     }
 }
