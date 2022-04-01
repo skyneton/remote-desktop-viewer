@@ -71,7 +71,6 @@ namespace RemoteDesktopViewer.Hook
         private static IntPtr HookCallback(int code, IntPtr wParam, IntPtr lParam)
         {
             var vkCode = Marshal.ReadInt32(lParam);
-            Debug.WriteLine(wParam +", " + code + ", " + vkCode);
             
             if(code >= 0)
             {

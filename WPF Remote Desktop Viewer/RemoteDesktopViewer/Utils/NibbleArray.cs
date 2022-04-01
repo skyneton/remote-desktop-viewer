@@ -1,33 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace RemoteDesktopViewer.Utils
 {
     public class NibbleArray
     {
-        private const double Div = 4.047619047619048;
         public byte[] Data { get; }
         // public int Length => Data.Length / 3 * 4;
         public int Length => Data.Length << 1;
         
         public NibbleArray(int length)
         {
-            Data = new byte[length / 2 + length % 2];
+            Data = new byte[(length >> 1) + (length & 1)];
             // Data = new byte[length / 4 * 3 + (length % 4 == 0 ? 0 : 3)];
-        }
-
-        public NibbleArray(IReadOnlyList<byte> arr)
-        {
-            var length = arr.Count;
-            Data = new byte[length / 2 + length % 2];
-            // Data = new byte[length / 4 * 3 + (length % 4 == 0 ? 0 : 3)];
-            for (var i = 0; i < length; i++)
-            {
-                this[i] = arr[i];
-            }
-            
-            // Debug.WriteLine(((byte[]) arr).Length + ", " + ((byte[]) this).Length +", " + Length);
-            // Buffer.BlockCopy((byte[]) arr, 0, (byte[]) this, 0, length);
         }
 
         public NibbleArray(byte[] bytes)
@@ -44,7 +28,7 @@ namespace RemoteDesktopViewer.Utils
                 // result |= (byte) (((Data[index + 1] >> shift) & 0b_00000011) << 2);
                 // result |= (byte) (((Data[index + 2] >> shift) & 0b_00000011) << 4);
                 // return (byte) Math.Round(result * Div);
-                (byte) Math.Round((Data[i / 2] >> (i % 2 * 4) & 0xF) * 17.0);
+                (byte) ((Data[i >> 1] >> ((i & 1) << 2) & 0xF) << 4);
             // return (byte) ((((Data[index] & target) >> shift) | (((Data[index + 1] & target) >> shift) << 2) | (((Data[index + 2] & target) >> shift) << 4)) * 4);
             set
             {
@@ -62,11 +46,10 @@ namespace RemoteDesktopViewer.Utils
                 // value >>= 2;
                 // Data[index + 2] &= target;
                 // Data[index + 2] |= (byte) ((value & 0b_00000011) << shift);
-                
-                value = (byte) Math.Round(value / 17.0);
-                value &= 0xF;
-                Data[i / 2] &= (byte) (0xF << ((i + 1) % 2 * 4));
-                Data[i / 2] |= (byte) (value << (i % 2 * 4));
+
+                value >>= 4;
+                Data[i >> 1] &= (byte) (0xF << (((i + 1) & 1) << 2));
+                Data[i >> 1] |= (byte) (value << ((i & 1) << 2));
             }
         }
     }

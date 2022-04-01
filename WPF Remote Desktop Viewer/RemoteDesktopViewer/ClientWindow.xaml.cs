@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using RemoteDesktopViewer.Hook;
+using RemoteDesktopViewer.Image;
 using RemoteDesktopViewer.Network;
 using RemoteDesktopViewer.Network.Packet.Data;
 using RemoteDesktopViewer.Utils;
@@ -22,35 +22,18 @@ namespace RemoteDesktopViewer
         
         private readonly Queue<Key> _pressedKey = new();
 
-        private bool ControlPressed => _pressedKey.Contains(Key.LeftCtrl) || _pressedKey.Contains(Key.RightCtrl);
-        private bool AltPressed => _pressedKey.Contains(Key.LeftAlt) || _pressedKey.Contains(Key.RightAlt);
-        private bool ShiftPressed => _pressedKey.Contains(Key.LeftShift) || _pressedKey.Contains(Key.RightShift);
-        private bool WinPressed => _pressedKey.Contains(Key.LWin) || _pressedKey.Contains(Key.RWin);
+        // private byte[] _beforeImageData;
 
         public ClientWindow(NetworkManager networkManager)
         {
             _networkManager = networkManager;
             InitializeComponent();
         }
-
+        
+        
         internal void DrawScreenChunk(ByteBuf buf)
         {
-            var data = new Queue<ImageChunk>();
-            while (buf.Length > 0)
-            {
-                var posX = buf.ReadVarInt();
-                var posY = buf.ReadVarInt();
-                var image = buf.Read(buf.ReadVarInt()).ToBitmapImage();
-                var stride = image.PixelWidth * (image.Format.BitsPerPixel >> 3);
-                var pixels = new byte[image.PixelHeight * stride];
-                image.CopyPixels(pixels, stride, 0);
-                data.Enqueue(new ImageChunk(new Int32Rect(posX, posY, image.PixelWidth, image.PixelHeight), stride, pixels));
-            }
-            
-            Dispatcher.Invoke(() =>
-            {
-                RenderChunkMainThread(data);
-            });
+            Dispatcher.Invoke(() => ImageProcess.DecompressChunk(_bitmap, buf));
         }
 
         internal void DrawScreenChunkCompress(ByteBuf buf)
@@ -99,12 +82,29 @@ namespace RemoteDesktopViewer
 
         internal void DrawFullScreen(int width, int height, double dpiX, double dpiY, PixelFormat format, int size, NibbleArray array)
         {
-            Debug.WriteLine(format);
             //var pixels = array.UnLoss(size, height);
             var pixels = array.ImageDecompress(size);
             
             Dispatcher.Invoke(() =>
             {
+                _bitmap = new WriteableBitmap(width, height, dpiX, dpiY, format, null);
+                _bitmap.WritePixels(new Int32Rect(0, 0, width, height), pixels, pixels.Length / height, 0);
+                Image.BeginInit();
+                Image.Source = _bitmap;
+                Image.EndInit();
+            });
+        }
+
+        internal void DrawFullScreen(PixelFormat format, int width, int height, float dpiX, float dpiY, byte[] data)
+        {
+            var source = ImageProcess.ToBitmap(data);
+            var pixels = ImageProcess.ToCompress(source);
+            // var pixels = ImageProcess.Decompress(_beforeImageData, width, height);
+            // var pixels = _beforeImageData.ImageDecompress(width * height * 3);
+            
+            Dispatcher.Invoke(() =>
+            {
+                // _bitmap = new WriteableBitmap(source);
                 _bitmap = new WriteableBitmap(width, height, dpiX, dpiY, format, null);
                 _bitmap.WritePixels(new Int32Rect(0, 0, width, height), pixels, pixels.Length / height, 0);
                 Image.BeginInit();
@@ -133,7 +133,6 @@ namespace RemoteDesktopViewer
                 case KeyboardManager.KeyUp:
                     if (_pressedKey.Contains(key))
                     {
-                        Debug.WriteLine(key);
                         _networkManager.SendPacket(new PacketKeyEvent((byte) vkCode, PacketKeyEvent.KeyUp));
                         _pressedKey.Remove(key);
                     }

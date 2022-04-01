@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Input;
 using RemoteDesktopViewer.Network.Packet;
 using RemoteDesktopViewer.Network.Packet.Data;
+using RemoteDesktopViewer.Threading;
 using RemoteDesktopViewer.Utils;
 
 namespace RemoteDesktopViewer.Network
@@ -119,6 +120,7 @@ namespace RemoteDesktopViewer.Network
             }
             catch (Exception e)
             {
+                throw e;
                 SocketExceptionCheck(e);
             }
         }
@@ -203,6 +205,7 @@ namespace RemoteDesktopViewer.Network
             }
             catch (Exception e)
             {
+                throw e;
                 if (ClientWindow != null) MainWindow.Instance?.InvokeAction(() => MessageBox.Show(e.Message));
                 Disconnect();
             }
@@ -222,6 +225,7 @@ namespace RemoteDesktopViewer.Network
             }
             catch (Exception)
             {
+                throw;
                 _client.Close();
             }
         }

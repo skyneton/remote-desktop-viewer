@@ -60,7 +60,9 @@
       <DependentUpon>ClientWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Hook\KeyboardManager.cs" />
+    <Compile Include="Image\ImageProcess.cs" />
     <Compile Include="Network\NetworkBuf.cs" />
+    <Compile Include="Threading\ScreenThreadManager.cs" />
     <Compile Include="Utils\ByteBuf.cs" />
     <Compile Include="Utils\NibbleArray.cs" />
     <Compile Include="Utils\RemoteExtensions.cs" />
@@ -93,7 +95,6 @@
     <Compile Include="Network\Packet\PacketType.cs" />
     <Compile Include="Network\RemoteClient.cs" />
     <Compile Include="Network\RemoteServer.cs" />
-    <Compile Include="Network\ScreenThreadManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>

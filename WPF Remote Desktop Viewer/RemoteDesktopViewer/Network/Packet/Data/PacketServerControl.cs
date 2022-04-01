@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows;
+using RemoteDesktopViewer.Threading;
 using RemoteDesktopViewer.Utils;
 
 namespace RemoteDesktopViewer.Network.Packet.Data
@@ -135,7 +136,6 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         {
             var vk = buf.ReadByte();
             var flag = buf.ReadVarInt();
-            Debug.WriteLine((flag == KeyUp) + ", " + vk);
             if(networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
                 ServerControl.keybd_event((byte) vk, 0, flag, 0);
         }
