@@ -36,6 +36,8 @@ namespace RemoteDesktopViewer.Hook
         
         public const int KeyDown = 256;
         public const int KeyUp = 257;
+        public const int SystemKeyDown = 260;
+        public const int SystemKeyUp = 261;
 
         public static void SetupHook()
         {
@@ -71,13 +73,10 @@ namespace RemoteDesktopViewer.Hook
         private static IntPtr HookCallback(int code, IntPtr wParam, IntPtr lParam)
         {
             var vkCode = Marshal.ReadInt32(lParam);
-            
-            if(code >= 0)
+            if (code < 0) return CallNextHookEx(_hookID, code, wParam, lParam);
+            if (_callbacks.Any(callback => callback.Invoke(code, (int) wParam, vkCode)))
             {
-                if (_callbacks.Any(callback => callback.Invoke(code, (int) wParam, vkCode)))
-                {
-                    return (IntPtr) 1;
-                }
+                return (IntPtr) 1;
             }
 
             return CallNextHookEx(_hookID, code, wParam, lParam);

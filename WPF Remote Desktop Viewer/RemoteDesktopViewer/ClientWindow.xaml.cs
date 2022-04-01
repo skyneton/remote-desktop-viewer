@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -23,6 +24,7 @@ namespace RemoteDesktopViewer
         private readonly Queue<Key> _pressedKey = new();
 
         // private byte[] _beforeImageData;
+        private long _beforeMouseMove;
 
         public ClientWindow(NetworkManager networkManager)
         {
@@ -123,14 +125,15 @@ namespace RemoteDesktopViewer
         {
             if (!IsActive || !_networkManager.ServerControl) return false;
             var key = KeyInterop.KeyFromVirtualKey(vkCode);
+            Debug.WriteLine($"{key} {wParam}");
 
             switch (wParam)
             {
-                case KeyboardManager.KeyDown:
+                case KeyboardManager.KeyDown: case KeyboardManager.SystemKeyDown:
                     _networkManager.SendPacket(new PacketKeyEvent((byte) vkCode, PacketKeyEvent.KeyDown));
                     _pressedKey.Enqueue(key);
                     break;
-                case KeyboardManager.KeyUp:
+                case KeyboardManager.KeyUp: case KeyboardManager.SystemKeyUp:
                     if (_pressedKey.Contains(key))
                     {
                         _networkManager.SendPacket(new PacketKeyEvent((byte) vkCode, PacketKeyEvent.KeyUp));
@@ -151,8 +154,9 @@ namespace RemoteDesktopViewer
         private void ClientWindow_OnMouseMove(object sender, MouseEventArgs e)
         { 
             ButtonShow(e.GetPosition(NormalMaxBtn));
-            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e)) return;
-            
+            var now = TimeManager.CurrentTimeMillis;
+            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e) || now - _beforeMouseMove < 5) return;
+            _beforeMouseMove = now;
 
             var point = e.GetPosition(Image);
             _beforePoint = new Vector(point.X / Image.RenderSize.Width, point.Y / Image.RenderSize.Height);

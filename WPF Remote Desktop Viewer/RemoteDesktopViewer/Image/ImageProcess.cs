@@ -84,7 +84,7 @@ namespace RemoteDesktopViewer.Image
             var compressed = ByteProcess.Compress(changedPixels);
             if (length > compressed.Length)
             {
-                Debug.WriteLine($"Origin: {length} Compressed: {compressed.Length}");
+                // Debug.WriteLine($"Origin: {length} Compressed: {compressed.Length}");
                 length = compressed.Length;
                 changedPixels = compressed;
                 ms.WriteByte(1);
