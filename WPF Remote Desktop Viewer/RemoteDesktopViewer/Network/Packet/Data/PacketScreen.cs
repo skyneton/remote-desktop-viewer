@@ -12,7 +12,6 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         private readonly int _format;
         private readonly int _width, _height;
         private readonly float _dpiX, _dpiY;
-        private readonly int _size;
         
         private readonly byte[] _data;
         internal PacketScreen() {}
@@ -26,7 +25,6 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             _dpiY = dpi.Y;
 
             _data = ImageProcess.ToJpegImage(width, height, format, data);
-            Debug.WriteLine(_data.Length);
         }
 
         public void Write(ByteBuf buf)

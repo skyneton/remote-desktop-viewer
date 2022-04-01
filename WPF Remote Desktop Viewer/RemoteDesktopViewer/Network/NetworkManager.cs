@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Windows;
 using System.Windows.Input;
+using RemoteDesktopViewer.Compress;
 using RemoteDesktopViewer.Network.Packet;
 using RemoteDesktopViewer.Network.Packet.Data;
 using RemoteDesktopViewer.Threading;
@@ -120,7 +121,6 @@ namespace RemoteDesktopViewer.Network
             }
             catch (Exception e)
             {
-                throw e;
                 SocketExceptionCheck(e);
             }
         }
@@ -134,7 +134,7 @@ namespace RemoteDesktopViewer.Network
             if (length == 0)
                 return compressed;
 
-            return compressed.Decompress();
+            return ByteProcess.Decompress(compressed);
         }
 
 
@@ -143,7 +143,7 @@ namespace RemoteDesktopViewer.Network
             var result = new ByteBuf();
             if(buf.WriteLength >= CompressionThreshold)
             {
-                var compressed = buf.GetBytes().Compress();
+                var compressed = ByteProcess.Compress(buf.GetBytes());
                 result.WriteVarInt(buf.WriteLength);
                 result.Write(compressed);
             }else
@@ -205,7 +205,6 @@ namespace RemoteDesktopViewer.Network
             }
             catch (Exception e)
             {
-                throw e;
                 if (ClientWindow != null) MainWindow.Instance?.InvokeAction(() => MessageBox.Show(e.Message));
                 Disconnect();
             }
@@ -225,7 +224,6 @@ namespace RemoteDesktopViewer.Network
             }
             catch (Exception)
             {
-                throw;
                 _client.Close();
             }
         }

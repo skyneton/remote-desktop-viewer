@@ -59,6 +59,7 @@
     <Compile Include="ClientWindow.xaml.cs">
       <DependentUpon>ClientWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Compress\ByteProcess.cs" />
     <Compile Include="Hook\KeyboardManager.cs" />
     <Compile Include="Image\ImageProcess.cs" />
     <Compile Include="Network\NetworkBuf.cs" />

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -16,7 +15,7 @@ namespace RemoteDesktopViewer.Threading
     public static class ScreenThreadManager
     {
         private const int ThreadEmptyDelay = 500;
-        private const int ThreadDelay = 10;
+        private const int ThreadDelay = 15;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new();
         private static DoubleKey<int, int> _beforeSize;
         private static DoubleKey<int, int> _currentSize = GetScreenSize();
@@ -87,7 +86,7 @@ namespace RemoteDesktopViewer.Threading
             if (_changedData.Length >= _beforeImageData.Length >> 5)
             {
                 RemoteServer.Instance?.Broadcast(new PacketScreen(Format, Width, Height, Dpi, _beforeImageData));
-                Debug.WriteLine($"Changed: {_changedData.Length}");
+                // Debug.WriteLine($"Changed: {_changedData.Length}");
             }
             else
                 RemoteServer.Instance?.Broadcast(new PacketScreenChunk(_changedData));

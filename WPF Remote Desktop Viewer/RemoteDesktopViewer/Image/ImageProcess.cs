@@ -4,7 +4,9 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Windows;
 using System.Windows.Media.Imaging;
+using RemoteDesktopViewer.Compress;
 using RemoteDesktopViewer.Threading;
 using RemoteDesktopViewer.Utils;
 
@@ -78,16 +80,18 @@ namespace RemoteDesktopViewer.Image
             var changedPixels = changedPixelsStream.ToArray();
             var length = changedPixels.Length;
 
-            // var compressed = ToJpegImage(length / pixelsPer, 1, image.PixelFormat, changedPixels);
-            // if (length > compressed.Length)
-            // {
-            //     length = compressed.Length;
-            //     changedPixels = compressed;
-            //     ms.WriteByte(1);
-            // }
-            // else
-            //     ms.WriteByte(0);
-            //
+            // var compressed = ToJpegImage(length / pixelsPer, 1, image.PixelFormat, changedPixels, 100);
+            var compressed = ByteProcess.Compress(changedPixels);
+            if (length > compressed.Length)
+            {
+                Debug.WriteLine($"Origin: {length} Compressed: {compressed.Length}");
+                length = compressed.Length;
+                changedPixels = compressed;
+                ms.WriteByte(1);
+            }
+            else
+                ms.WriteByte(0);
+            
             Write(ms, ByteBuf.GetVarInt(length));
             ms.Write(changedPixels, 0, length);
             
@@ -138,15 +142,15 @@ namespace RemoteDesktopViewer.Image
 
         public static void DecompressChunk(WriteableBitmap bitmap, ByteBuf chunk)
         {
-            var pixels = chunk.Read(chunk.ReadVarInt());
-            
             bitmap.Lock();
-            // var compressed = chunk.ReadBool();
-            // if (compressed)
-            // {
-            //     using var bitmap = ToBitmap(pixels);
-            //     pixels = ToCompress(bitmap);
-            // }
+            var compressed = chunk.ReadBool();
+            var pixels = chunk.Read(chunk.ReadVarInt());
+            if (compressed)
+            {
+                // using var palette = ToBitmap(pixels);
+                // pixels = ToCompress(palette);
+                pixels = ByteProcess.Decompress(pixels);
+            }
 
             unsafe
             {
@@ -163,17 +167,17 @@ namespace RemoteDesktopViewer.Image
                     }
                 }
             }
-            // Debug.WriteLine($"Full: {full.Length} Changed: {pixels.Length} pixelPos: {pixelPos}");
+            bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
             bitmap.Unlock();
         }
 
-        public static byte[] ToJpegImage(int width, int height, PixelFormat format, byte[] data)
+        public static byte[] ToJpegImage(int width, int height, PixelFormat format, byte[] data, long quality = 30)
         {
             var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
             using var bitmap = new Bitmap(width, height, data.Length / height, format, handle.AddrOfPinnedObject());
             using var ms = new MemoryStream();
             var param = new EncoderParameters(1);
-            param.Param[0] = new EncoderParameter(Encoder.Quality, 30L);
+            param.Param[0] = new EncoderParameter(Encoder.Quality, quality);
             bitmap.Save(ms, GetEncoder(ImageFormat.Jpeg), param);
             handle.Free();
             return ms.ToArray();
