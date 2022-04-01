@@ -135,7 +135,6 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         public void Read(NetworkManager networkManager, ByteBuf buf)
         {
             var vk = buf.ReadByte();
-            Debug.WriteLine(vk);
             var flag = buf.ReadVarInt();
             if(networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
                 ServerControl.keybd_event((byte) vk, 0, flag, 0);

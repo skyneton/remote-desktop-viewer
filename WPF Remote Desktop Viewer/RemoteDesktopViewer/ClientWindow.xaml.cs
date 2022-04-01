@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -125,7 +124,6 @@ namespace RemoteDesktopViewer
         {
             if (!IsActive || !_networkManager.ServerControl) return false;
             var key = KeyInterop.KeyFromVirtualKey(vkCode);
-            Debug.WriteLine($"{key} {wParam}");
 
             switch (wParam)
             {
@@ -155,7 +153,7 @@ namespace RemoteDesktopViewer
         { 
             ButtonShow(e.GetPosition(NormalMaxBtn));
             var now = TimeManager.CurrentTimeMillis;
-            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e) || now - _beforeMouseMove < 5) return;
+            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e) || now - _beforeMouseMove < 10) return;
             _beforeMouseMove = now;
 
             var point = e.GetPosition(Image);

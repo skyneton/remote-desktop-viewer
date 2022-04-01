@@ -39,10 +39,10 @@ namespace RemoteDesktopViewer.Network
             so.TargetSocket.BeginReceive(so.Buffer, 0, StateObject.BufferSize, SocketFlags.None, ReceiveAsync, so);
         }
 
-        public void Disconnect(bool remove = true)
+        public void Disconnect()
         {
             IsAvailable = false;
-            if (remove && ClientWindow != null)
+            if (ClientWindow != null)
                 MainWindow.Instance?.InvokeAction(ClientWindow.Close);
         }
 
@@ -101,9 +101,7 @@ namespace RemoteDesktopViewer.Network
                     continue;
                 }
 
-                if (_client is not {Connected: true}) return;
-                    if (ClientWindow != null) MainWindow.Instance?.InvokeAction(() => MessageBox.Show(e.Message));
-                
+                if (ClientWindow != null) MainWindow.Instance?.InvokeAction(() => MessageBox.Show(e.Message));
                 Disconnect();
 
                 break;
