@@ -2,7 +2,6 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Windows;
-using System.Windows.Input;
 using RemoteDesktopViewer.Compress;
 using RemoteDesktopViewer.Network.Packet;
 using RemoteDesktopViewer.Network.Packet.Data;
@@ -27,6 +26,8 @@ namespace RemoteDesktopViewer.Network
         public bool ServerControl { get; private set; }
 
         private NetworkBuf _receiveBuf = new();
+
+        public int BeforeCursor { get; internal set; } = -1;
 
         internal NetworkManager(TcpClient client)
         {

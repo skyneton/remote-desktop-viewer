@@ -10,6 +10,7 @@
         ServerControl,
         MouseMove,
         MouseEvent,
-        KeyEvent
+        KeyEvent,
+        CursorEvent
     }
 }

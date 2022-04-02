@@ -1,7 +1,8 @@
-﻿using System.Diagnostics;
-using System.Drawing;
+﻿using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Input;
 using RemoteDesktopViewer.Threading;
 using RemoteDesktopViewer.Utils;
 
@@ -16,6 +17,60 @@ namespace RemoteDesktopViewer.Network.Packet.Data
 
         [DllImport("user32.dll")]
         internal static extern void SetCursorPos(int x, int y);
+
+        [DllImport("user32.dll")]
+        internal static extern bool GetCursorInfo(out CURSORINFO pci);
+        
+        [DllImport("user32.dll")]
+        internal static extern int LoadCursor(IntPtr hInstance, int hCursor);
+        
+        [DllImport("user32.dll")]
+        internal static extern int SetCursor(int hCursor);
+        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct CURSORINFO
+        {
+            public Int32 cbSize;
+            public Int32 flags;
+            public IntPtr hCursor;
+            public POINT ptScreenPos;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT
+        {
+            public Int32 x;
+            public Int32 y;
+        }
+
+        public enum CursorType
+        {
+            None = 0,
+            Arrow = 65539,
+            IBeam = 65541,
+            Wait = 65543,
+            Cross = 65545,
+            ScrollNW = 65549,
+            ScrollWE = 65553,
+            ScrollNE = 65551,
+            ScrollW = 65553,
+            ScrollNS = 65555,
+            ScrollAll = 65557,
+            No = 65559,
+            Progress = 65561,
+            Pointer = 65563,
+            
+            Grabbing = 13896596,
+            Alias = 31327887,
+            ColResize = 32770565,
+            VerticalText = 38668561,
+            ZoomIn = 62917193,
+            Cell = 64882867,
+            Grab = 69339379,
+            RowResize = 85000401,
+            Copy = 132646983,
+            ZoomOut = 186320971
+        }
     }
     
     public class PacketServerControl : IPacket
@@ -60,9 +115,48 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             var size = ScreenThreadManager.GetScreenSize();
             var posX = (int) (size.X * buf.ReadDouble());
             var posY = (int) (size.Y * buf.ReadDouble());
+
+            if (!networkManager.IsAuthenticate || (!(RemoteServer.Instance?.ServerControl ?? false))) return;
             
-            if(networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
-                ServerControl.SetCursorPos(posX, posY);
+            ServerControl.SetCursorPos(posX, posY);
+            
+            ServerControl.CURSORINFO pci;
+            pci.cbSize =  Marshal.SizeOf(typeof(ServerControl.CURSORINFO));
+            if (!ServerControl.GetCursorInfo(out pci) || (int) pci.hCursor == networkManager.BeforeCursor) return;
+            networkManager.BeforeCursor = (int) pci.hCursor;
+            networkManager.SendPacket(new PacketCursorType((int) pci.hCursor));
+        }
+    }
+
+    public class PacketCursorType : IPacket
+    {
+        private int _cursor;
+        public PacketCursorType()
+        {
+            ServerControl.CURSORINFO pci;
+            pci.cbSize =  Marshal.SizeOf(typeof(ServerControl.CURSORINFO));
+            if (!ServerControl.GetCursorInfo(out pci)) return;
+            _cursor = (int) pci.hCursor;
+        }
+
+        public PacketCursorType(int cursor)
+        {
+            _cursor = cursor;
+        }
+        
+        public void Write(ByteBuf buf)
+        {
+            buf.WriteVarInt((int) PacketType.CursorEvent);
+            buf.WriteVarInt(_cursor);
+        }
+
+        public void Read(NetworkManager networkManager, ByteBuf buf)
+        {
+            _cursor = buf.ReadVarInt();
+            if(networkManager.ClientWindow != null)
+                networkManager.ClientWindow.CursorValue = _cursor;
+            
+            MainWindow.Instance.Dispatcher.Invoke(() => ServerControl.SetCursor(_cursor));
         }
     }
 
@@ -136,8 +230,10 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         {
             var vk = buf.ReadByte();
             var flag = buf.ReadVarInt();
-            if(networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
+            if (networkManager.IsAuthenticate && (RemoteServer.Instance?.ServerControl ?? false))
+            {
                 ServerControl.keybd_event((byte) vk, 0, flag, 0);
+            }
         }
     }
 }

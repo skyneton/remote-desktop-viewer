@@ -20,7 +20,8 @@ namespace RemoteDesktopViewer.Network.Packet
                 {(int) PacketType.ServerControl, new PacketServerControl()},
                 {(int) PacketType.MouseMove, new PacketMouseMove()},
                 {(int) PacketType.MouseEvent, new PacketMouseEvent()},
-                {(int) PacketType.KeyEvent, new PacketKeyEvent()}
+                {(int) PacketType.KeyEvent, new PacketKeyEvent()},
+                {(int) PacketType.CursorEvent, new PacketCursorType()}
             };
             Packets = new ReadOnlyDictionary<int, IPacket>(packets);
         }

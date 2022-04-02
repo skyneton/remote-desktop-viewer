@@ -25,6 +25,8 @@ namespace RemoteDesktopViewer
         // private byte[] _beforeImageData;
         private long _beforeMouseMove;
 
+        public int CursorValue { get; internal set; } = -1;
+
         public ClientWindow(NetworkManager networkManager)
         {
             _networkManager = networkManager;
@@ -151,15 +153,22 @@ namespace RemoteDesktopViewer
         }
 
         private void ClientWindow_OnMouseMove(object sender, MouseEventArgs e)
-        { 
+        {
+            CursorShow();
             ButtonShow(e.GetPosition(NormalMaxBtn));
             var now = TimeManager.CurrentTimeMillis;
-            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e) || now - _beforeMouseMove < 10) return;
+            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e) || now - _beforeMouseMove < 15) return;
             _beforeMouseMove = now;
 
             var point = e.GetPosition(Image);
             _beforePoint = new Vector(point.X / Image.RenderSize.Width, point.Y / Image.RenderSize.Height);
             _networkManager.SendPacket(new PacketMouseMove(_beforePoint));
+        }
+
+        private void CursorShow()
+        {
+            if (CursorValue == -1) return;
+            MainWindow.Instance.Dispatcher.Invoke(() => ServerControl.SetCursor(CursorValue));
         }
 
         private void ButtonShow(Point point)
