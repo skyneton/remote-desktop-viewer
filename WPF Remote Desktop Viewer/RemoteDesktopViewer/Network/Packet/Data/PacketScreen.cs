@@ -24,7 +24,9 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             _dpiX = dpi.X;
             _dpiY = dpi.Y;
 
-            _data = ImageProcess.ToJpegImage(width, height, format, data);
+            _data = ImageProcess.ToGifImage(width, height, PixelFormat.Format8bppIndexed, data);
+            // Debug.WriteLine($"Before: {data.Length} Compressed: {_data.Length}");
+            // _data = data;
         }
 
         public void Write(ByteBuf buf)
