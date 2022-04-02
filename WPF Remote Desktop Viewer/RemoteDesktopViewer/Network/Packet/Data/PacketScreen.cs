@@ -1,7 +1,4 @@
-﻿using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
+﻿using System.Drawing.Imaging;
 using RemoteDesktopViewer.Image;
 using RemoteDesktopViewer.Utils;
 
@@ -24,9 +21,7 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             _dpiX = dpi.X;
             _dpiY = dpi.Y;
 
-            _data = ImageProcess.ToGifImage(width, height, PixelFormat.Format8bppIndexed, data);
-            // Debug.WriteLine($"Before: {data.Length} Compressed: {_data.Length}");
-            // _data = data;
+            _data = ImageProcess.ToJpegImage(width, height, format, data);
         }
 
         public void Write(ByteBuf buf)

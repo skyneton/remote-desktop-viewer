@@ -98,11 +98,11 @@ namespace RemoteDesktopViewer
 
         internal void DrawFullScreen(PixelFormat format, int width, int height, float dpiX, float dpiY, byte[] data)
         {
-            var source = ImageProcess.ToBitmap(data);
-            var pixels = ImageProcess.Decompress(source, width, height);
+            using var source = ImageProcess.ToBitmap(data);
+            var pixels = ImageProcess.ToCompress(source);
+            // var pixels = ImageProcess.Decompress(source, width, height);
             // var pixels = ImageProcess.Decompress(data, width, height);
             // var pixels = ImageProcess.Decompress(_beforeImageData, width, height);
-            // var pixels = _beforeImageData.ImageDecompress(width * height * 3);
             
             Dispatcher.Invoke(() =>
             {

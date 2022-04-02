@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -26,8 +25,8 @@ namespace RemoteDesktopViewer.Threading
         private static byte[] _beforeImageData;
         private static byte[] _changedData;
 
-        public static readonly PixelFormat Format = PixelFormat.Format24bppRgb;
-        // public static readonly PixelFormat Format = PixelFormat.Format16bppRgb565;
+        // private static readonly PixelFormat ImageFormat = PixelFormat.Format24bppRgb;
+        public static readonly PixelFormat Format = PixelFormat.Format16bppRgb565;
         private static int _width, _height;
         private static DoubleKey<float, float> _dpi;
 
@@ -84,7 +83,7 @@ namespace RemoteDesktopViewer.Threading
         private static void ScreenChunk()
         {
             if (_changedData.Length == 0) return;
-            if (_changedData.Length > _beforeImageData.Length >> 5)
+            if (_changedData.Length >= _beforeImageData.Length >> 5)
             {
                 RemoteServer.Instance?.Broadcast(new PacketScreen(Format, _width, _height, _dpi, _beforeImageData));
                 // Debug.WriteLine($"Changed: {_changedData.Length}");
