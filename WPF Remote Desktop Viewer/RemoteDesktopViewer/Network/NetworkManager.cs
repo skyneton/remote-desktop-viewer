@@ -105,7 +105,8 @@ namespace RemoteDesktopViewer.Network
                     e = e.InnerException;
                     continue;
                 }
-
+                
+                Debug.WriteLine(e);
                 if (ClientWindow != null) MainWindow.Instance?.InvokeAction(() => MessageBox.Show(e.Message));
                 Disconnect();
 

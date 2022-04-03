@@ -36,7 +36,11 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         internal PacketScreen(Bitmap image)
         {
             _data = ImageProcess.ToJpegImage(image);
-            Debug.WriteLine(_data.Length);
+        }
+        
+        internal PacketScreen(byte[] jpeg)
+        {
+            _data = jpeg;
         }
 
         public void Write(ByteBuf buf)

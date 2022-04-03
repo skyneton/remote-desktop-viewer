@@ -83,9 +83,12 @@ namespace RemoteDesktopViewer.Threading
         private static void ScreenChunk()
         {
             if (_changedData == null || _changedData.Length == 0) return;
-            if (_changedData.Length > (_beforeImageData.Length >> 4) * 1.2)
+            // if (_changedData.Length > (_beforeImageData.Length >> 4) * 1.2)
+            var jpeg = ImageProcess.ToJpegImage(_beforeFrame);
+            if (_changedData.Length > jpeg.Length)
             {
-                RemoteServer.Instance?.Broadcast(new PacketScreen(_beforeFrame));
+                Debug.WriteLine($"{_changedData.Length} -> {jpeg.Length}");
+                RemoteServer.Instance?.Broadcast(new PacketScreen(jpeg));
                 // Debug.WriteLine($"Changed: {_changedData.Length}");
             }
             else
