@@ -1,13 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 using RemoteDesktopViewer.Hook;
 using RemoteDesktopViewer.Image;
 using RemoteDesktopViewer.Network;
 using RemoteDesktopViewer.Network.Packet.Data;
+using RemoteDesktopViewer.Threading;
 using RemoteDesktopViewer.Utils;
 
 namespace RemoteDesktopViewer
@@ -24,6 +28,8 @@ namespace RemoteDesktopViewer
 
         // private byte[] _beforeImageData;
         private long _beforeMouseMove;
+
+        private readonly ThreadFactory _fileUploadFactory = new();
 
         public int CursorValue { get; internal set; } = -1;
 
@@ -100,11 +106,11 @@ namespace RemoteDesktopViewer
 
         internal void DrawFullScreen(PixelFormat format, int width, int height, float dpiX, float dpiY, byte[] data)
         {
-            using var source = ImageProcess.ToBitmap(data);
-            var pixels = ImageProcess.ToCompress(source);
-            // var pixels = ImageProcess.Decompress(source, width, height);
+            var source = ImageProcess.ToBitmap(data);
+            var pixels = ImageProcess.Decompress(source, width, height);
             // var pixels = ImageProcess.Decompress(data, width, height);
             // var pixels = ImageProcess.Decompress(_beforeImageData, width, height);
+            // var pixels = _beforeImageData.ImageDecompress(width * height * 3);
             
             Dispatcher.Invoke(() =>
             {
@@ -148,6 +154,7 @@ namespace RemoteDesktopViewer
         
         private void ClientWindow_OnClosed(object sender, EventArgs e)
         {
+            _fileUploadFactory.KillAll();
             KeyboardManager.RemoveCallback(KeyHookCallback);
             _networkManager?.Disconnect();
         }
@@ -155,9 +162,9 @@ namespace RemoteDesktopViewer
         private void ClientWindow_OnMouseMove(object sender, MouseEventArgs e)
         {
             CursorShow();
-            ButtonShow(e.GetPosition(NormalMaxBtn));
+            TopMenuShow(e.GetPosition(TopMenu));
             var now = TimeManager.CurrentTimeMillis;
-            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e) || now - _beforeMouseMove < 15) return;
+            if (!IsActive || !_networkManager.ServerControl || !CursorWidthInScreen(e) || now - _beforeMouseMove < 17) return;
             _beforeMouseMove = now;
 
             var point = e.GetPosition(Image);
@@ -171,19 +178,19 @@ namespace RemoteDesktopViewer
             MainWindow.Instance.Dispatcher.Invoke(() => ServerControl.SetCursor(CursorValue));
         }
 
-        private void ButtonShow(Point point)
+        private void TopMenuShow(Point point)
         {
             if (Math.Abs(point.X) < ShowRadis && Math.Abs(point.Y) < ShowRadis)
             {
-                if (NormalMaxBtn.Visibility == Visibility.Hidden)
+                if (TopMenu.Visibility == Visibility.Hidden)
                 {
-                    NormalMaxBtn.Visibility = Visibility.Visible;
+                    TopMenu.Visibility = Visibility.Visible;
                 }
 
                 return;
             }
 
-            if (NormalMaxBtn.Visibility == Visibility.Visible) NormalMaxBtn.Visibility = Visibility.Hidden;
+            if (TopMenu.Visibility == Visibility.Visible) TopMenu.Visibility = Visibility.Hidden;
         }
 
         private void ClientWindow_OnMouseWheel(object sender, MouseWheelEventArgs e)
@@ -298,6 +305,46 @@ namespace RemoteDesktopViewer
             {
                 var key = _pressedKey.Dequeue();
                 _networkManager.SendPacket(new PacketKeyEvent((byte) KeyInterop.VirtualKeyFromKey(key), PacketKeyEvent.KeyUp));
+            }
+        }
+
+        private void Window_DragEnter(object sender, DragEventArgs e)
+        {
+            e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void Window_DragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
+            e.Handled = true;
+        }
+        private void Window_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                UploadFiles((string[]) e.Data.GetData(DataFormats.FileDrop));
+        }
+
+        private void UploadBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog();
+            dialog.Multiselect = true;
+            dialog.DefaultExt = "*";
+            var result = dialog.ShowDialog() ?? false;
+            if (result)
+                UploadFiles(dialog.FileNames);
+        }
+
+        private void UploadFiles(string[] files)
+        {
+            if (!_networkManager.ServerControl) return;
+            foreach (var file in files)
+            {
+                _fileUploadFactory.LaunchThread(new Thread(() => FileThreadManager.Worker(_networkManager, file)));
             }
         }
     }

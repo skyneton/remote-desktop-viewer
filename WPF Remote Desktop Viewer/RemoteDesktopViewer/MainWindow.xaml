@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:RemoteDesktopViewer"
         mc:Ignorable="d"
-        Title="Remote Desktop Viewer" Height="470" Width="800" ResizeMode="NoResize"
+        Title="Remote Desktop Viewer" Height="470" Width="800" ResizeMode="CanMinimize"
         Closing="MainWindow_OnClosing"
         FontFamily="Tahoma">
     <Grid>

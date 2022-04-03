@@ -12,17 +12,36 @@
         MouseWheel="ClientWindow_OnMouseWheel"
         MouseDown="ClientWindow_OnMouseDown"
         MouseUp="ClientWindow_OnMouseUp"
-        Deactivated="ClientWindow_OnDeactivated">
-        <!-- PreviewKeyDown="ClientWindow_OnPreviewKeyDown" -->
-        <!-- PreviewKeyUp="ClientWindow_OnPreviewKeyUp"> -->
+        Deactivated="ClientWindow_OnDeactivated"
+        AllowDrop="True"
+        DragEnter="Window_DragEnter"
+        DragOver="Window_DragOver"
+        Drop="Window_Drop">
+    <!-- DragEnter="ClientWindow_OnDragEnter" -->
+    <!-- PreviewKeyDown="ClientWindow_OnPreviewKeyDown" -->
+    <!-- PreviewKeyUp="ClientWindow_OnPreviewKeyUp"> -->
     <Grid>
         <Image Name="Image" Stretch="Fill"></Image>
-        <Button
-            Name="NormalMaxBtn"
-            Height="20"
-            Width="80"
-            VerticalAlignment="Top"
-            Visibility="Hidden"
-            Click="NormalMaxBtn_OnClick">Maximize</Button>
+        <Grid Name="TopMenu"
+              VerticalAlignment="Top"
+              HorizontalAlignment="Center"
+              Visibility="Hidden">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition Width="80"/>
+            </Grid.ColumnDefinitions>
+            <Button
+                Name="NormalMaxBtn"
+                Height="19"
+                Width="70"
+                Click="NormalMaxBtn_OnClick"
+                Grid.Column="0">Maximize</Button>
+            <Button
+                Name="UploadBtn"
+                Height="19"
+                Width="55"
+                Click="UploadBtn_Click"
+                Grid.Column="1">File</Button>
+        </Grid>
     </Grid>
 </Window>

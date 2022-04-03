@@ -1,5 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31624.102
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RemoteDesktopViewer", "RemoteDesktopViewer\RemoteDesktopViewer.csproj", "{8603ABC6-7ED9-4982-A8B7-821932879086}"
 EndProject
 Global
@@ -12,5 +15,11 @@ Global
 		{8603ABC6-7ED9-4982-A8B7-821932879086}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8603ABC6-7ED9-4982-A8B7-821932879086}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8603ABC6-7ED9-4982-A8B7-821932879086}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7A5B7DD9-654D-4B5B-8A86-832B9105B081}
 	EndGlobalSection
 EndGlobal

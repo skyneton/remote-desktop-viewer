@@ -11,6 +11,9 @@
         MouseMove,
         MouseEvent,
         KeyEvent,
-        CursorEvent
+        CursorEvent,
+        FileNameEvent,
+        FileChunkEvent,
+        FileFinishedEvent,
     }
 }

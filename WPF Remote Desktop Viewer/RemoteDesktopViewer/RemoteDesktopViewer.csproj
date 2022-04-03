@@ -63,6 +63,8 @@
     <Compile Include="Hook\KeyboardManager.cs" />
     <Compile Include="Image\ImageProcess.cs" />
     <Compile Include="Network\NetworkBuf.cs" />
+    <Compile Include="Network\Packet\Data\PacketFile.cs" />
+    <Compile Include="Threading\FileThreadManager.cs" />
     <Compile Include="Threading\ScreenThreadManager.cs" />
     <Compile Include="Utils\ByteBuf.cs" />
     <Compile Include="Utils\NibbleArray.cs" />

@@ -5,7 +5,7 @@ using RemoteDesktopViewer.Utils;
 
 namespace RemoteDesktopViewer.Network.Packet
 {
-    public class PacketManager
+    public static class PacketManager
     {
         private static readonly ReadOnlyDictionary<int, IPacket> Packets;
 
@@ -21,7 +21,10 @@ namespace RemoteDesktopViewer.Network.Packet
                 {(int) PacketType.MouseMove, new PacketMouseMove()},
                 {(int) PacketType.MouseEvent, new PacketMouseEvent()},
                 {(int) PacketType.KeyEvent, new PacketKeyEvent()},
-                {(int) PacketType.CursorEvent, new PacketCursorType()}
+                {(int) PacketType.CursorEvent, new PacketCursorType()},
+                {(int) PacketType.FileNameEvent, new PacketFileName()},
+                {(int) PacketType.FileChunkEvent, new PacketFileChunk()},
+                {(int) PacketType.FileFinishedEvent, new PacketFileFinished()},
             };
             Packets = new ReadOnlyDictionary<int, IPacket>(packets);
         }

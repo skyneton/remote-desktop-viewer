@@ -111,7 +111,7 @@ namespace RemoteDesktopViewer
 
         private void IpAddress_OnPreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key is Key.Oem1 or Key.OemQuestion or Key.Oem5 or Key.Space)
+            if (e.Key is Key.Oem1 && (Keyboard.Modifiers & ModifierKeys.Shift) == 0 || e.Key is Key.OemQuestion or Key.Oem5 or Key.Space)
                 e.Handled = true;
         }
 

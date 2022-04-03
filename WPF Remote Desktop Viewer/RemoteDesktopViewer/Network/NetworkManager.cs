@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Windows;
@@ -26,8 +29,9 @@ namespace RemoteDesktopViewer.Network
         public bool ServerControl { get; private set; }
 
         private NetworkBuf _receiveBuf = new();
-
         public int BeforeCursor { get; internal set; } = -1;
+
+        private Dictionary<int, ByteBuf> _fileReceived = new();
 
         internal NetworkManager(TcpClient client)
         {
@@ -188,6 +192,63 @@ namespace RemoteDesktopViewer.Network
             }
         }
 
+        internal void FileChunkCreate(int id, string name)
+        {
+            var stream = new ByteBuf();
+            stream.WriteString(name);
+            _fileReceived.Add(id, stream);
+        }
+
+        internal void FileChunkReceived(int id, byte[] chunk)
+        {
+            if (!_fileReceived.TryGetValue(id, out var stream))
+                return;
+            stream.Write(chunk);
+        }
+
+        internal void FileChunkFinished(int id)
+        {
+            if (!_fileReceived.TryGetValue(id, out var stream))
+                return;
+            
+            _fileReceived.Remove(id);
+            var buf = new ByteBuf(stream.GetBytes());
+            var name = buf.ReadString();
+            var file = ByteProcess.Decompress(buf.Read(buf.Length));
+            
+            var path = GetFilePath(name);
+                
+            try
+            {
+                File.WriteAllBytes(path, file);
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e);
+            }
+        }
+
+        private static string GetFilePath(string name)
+        {
+            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            if (!File.Exists(Path.Combine(desktop, name)))
+                return Path.Combine(desktop, name);
+
+            var withOutExtension = Path.GetFileNameWithoutExtension(name);
+            var extension = Path.GetExtension(name);
+            var i = 0;
+
+            var path = Path.Combine(desktop, $"{withOutExtension} ({i}){extension}");
+            
+            while (File.Exists(path))
+            {
+                i++;
+                path = Path.Combine(desktop, $"{withOutExtension} ({i}){extension}");
+            }
+
+            return path;
+        }
+
         internal void SendPacket(IPacket packet)
         {
             if (_client is not {Connected: true}) return;
@@ -200,6 +261,7 @@ namespace RemoteDesktopViewer.Network
             try
             {
                 _client.GetStream().Write(data, 0, data.Length);
+                // Debug.WriteLine($"{data.Length} {TimeManager.CurrentTimeMillis - packetSend}ms");
                 _lastPacketMillis = TimeManager.CurrentTimeMillis;
             }
             catch (Exception e)
@@ -216,6 +278,7 @@ namespace RemoteDesktopViewer.Network
             try
             {
                 _client.GetStream().Write(packet, 0, packet.Length);
+                // Debug.WriteLine($"{packet.Length} {TimeManager.CurrentTimeMillis - packetSend}ms");
                 // _client.GetStream().Flush();
                 // _client.Client.Send(packet);
             
