@@ -16,6 +16,7 @@ namespace RemoteDesktopViewer.Network.Packet.Data
         private readonly byte[] _data;
         internal PacketScreen() {}
 
+        /*
         internal PacketScreen(PixelFormat format, int width, int height, DoubleKey<float, float> dpi, byte[] data)
         {
             _format = format.ToWpfPixelFormat().ToId();
@@ -24,21 +25,29 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             _dpiX = dpi.X;
             _dpiY = dpi.Y;
 
-            _data = ImageProcess.ToTifImage(width, height, PixelFormat.Format8bppIndexed, data);
-            Debug.WriteLine($"{data.Length} -> {_data.Length}");
+            var tif = ImageProcess.ToTifImage(width, height, PixelFormat.Format8bppIndexed, data);
+            var gif = ImageProcess.ToGifImage(width, height, PixelFormat.Format8bppIndexed, data);
+            
             // Debug.WriteLine($"Before: {data.Length} Compressed: {_data.Length}");
-            // _data = data;
+            _data = tif.Length < gif.Length ? tif : gif;
+        }
+        */
+
+        internal PacketScreen(Bitmap image)
+        {
+            _data = ImageProcess.ToJpegImage(image);
+            Debug.WriteLine(_data.Length);
         }
 
         public void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.Screen);
-            buf.WriteVarInt(_format);
-            buf.WriteVarInt(_width);
-            buf.WriteVarInt(_height);
-            buf.WriteFloat(_dpiX);
-            buf.WriteFloat(_dpiY);
-            buf.WriteVarInt(_data.Length);
+            // buf.WriteVarInt(_format);
+            // buf.WriteVarInt(_width);
+            // buf.WriteVarInt(_height);
+            // buf.WriteFloat(_dpiX);
+            // buf.WriteFloat(_dpiY);
+            // buf.WriteVarInt(_data.Length);
             buf.Write(_data);
         }
 
@@ -48,7 +57,8 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             // networkManager.ClientWindow?.DrawFullScreen(buf.ReadVarInt(), buf.ReadVarInt(), buf.ReadDouble(),
             //     buf.ReadDouble(), buf.ReadVarInt().ToPixelFormat(), buf.ReadVarInt(),
             //     new NibbleArray(buf.Read(buf.Length)));
-            networkManager.ClientWindow?.DrawFullScreen(buf.ReadVarInt().ToPixelFormat(), buf.ReadVarInt(), buf.ReadVarInt(), buf.ReadFloat(), buf.ReadFloat(), buf.Read(buf.ReadVarInt()));
+            // networkManager.ClientWindow?.DrawFullScreen(buf.ReadVarInt().ToPixelFormat(), buf.ReadVarInt(), buf.ReadVarInt(), buf.ReadFloat(), buf.ReadFloat(), buf.Read(buf.ReadVarInt()));
+            networkManager.ClientWindow?.DrawFullScreen(buf.Read(buf.Length));
         }
     }
 

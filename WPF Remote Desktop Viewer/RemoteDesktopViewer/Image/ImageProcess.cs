@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -22,7 +21,7 @@ namespace RemoteDesktopViewer.Image
             using var changedPixelsStream = new MemoryStream();
             using var info = new MemoryStream();
             var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly,
-                image.PixelFormat);
+                ScreenThreadManager.Format);
 
             var height = bitmapData.Height;
             var width = bitmapData.Width;
@@ -289,6 +288,33 @@ namespace RemoteDesktopViewer.Image
             return ms.ToArray();
         }
 
+        public static byte[] ToGifImage(int width, int height, PixelFormat format, byte[] data)
+        {
+            // var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+            // using var bitmap = new Bitmap(width, height, width, format, Marshal.UnsafeAddrOfPinnedArrayElement(data, 0));
+            using var image = new Bitmap(width, height, format);
+            
+            var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly, format);
+            // var pixelsPer = System.Drawing.Image.GetPixelFormatSize(bitmapData.PixelFormat) >> 3;
+
+            // height = bitmapData.Height;
+            // width = bitmapData.Width * pixelsPer;
+            var point = bitmapData.Scan0;
+            for (var y = 0; y < height; y++)
+            {
+                Marshal.Copy(data, y * width, point, width);
+                point += bitmapData.Stride;
+            }
+
+            image.UnlockBits(bitmapData);
+            
+            using var ms = new MemoryStream();
+            image.Save(ms, ImageFormat.Gif);
+            image.Dispose();
+            // handle.Free();
+            return ms.ToArray();
+        }
+
         public static byte[] ToJpegImage(int width, int height, PixelFormat format, byte[] data, long quality = 30)
         {
             var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
@@ -298,6 +324,15 @@ namespace RemoteDesktopViewer.Image
             param.Param[0] = new EncoderParameter(Encoder.Quality, quality);
             bitmap.Save(ms, GetEncoder(ImageFormat.Jpeg), param);
             handle.Free();
+            return ms.ToArray();
+        }
+
+        public static byte[] ToJpegImage(Bitmap bitmap, long quality = 30)
+        {
+            using var ms = new MemoryStream();
+            var param = new EncoderParameters(1);
+            param.Param[0] = new EncoderParameter(Encoder.Quality, quality);
+            bitmap.Save(ms, GetEncoder(ImageFormat.Jpeg), param);
             return ms.ToArray();
         }
 

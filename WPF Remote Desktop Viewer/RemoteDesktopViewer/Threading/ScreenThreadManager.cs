@@ -16,20 +16,19 @@ namespace RemoteDesktopViewer.Threading
     public static class ScreenThreadManager
     {
         private const int ThreadEmptyDelay = 500;
-        private const int ThreadDelay = 20;
+        private const int ThreadDelay = 22;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new();
         private static DoubleKey<int, int> _beforeSize;
         private static DoubleKey<int, int> _currentSize = GetScreenSize();
 
         private static bool SizeUpdated => _beforeSize != _currentSize;
-        
+
+        private static Bitmap _beforeFrame;
         private static byte[] _beforeImageData;
         private static byte[] _changedData;
 
         public static readonly PixelFormat Format = PixelFormat.Format24bppRgb;
         // public static readonly PixelFormat Format = PixelFormat.Format16bppRgb565;
-        private static int _width, _height;
-        private static DoubleKey<float, float> _dpi;
 
         internal static void Worker()
         {
@@ -62,7 +61,7 @@ namespace RemoteDesktopViewer.Threading
         private static void SendFullScreen()
         {
             if(FullScreenNetworks.Count == 0) return;     
-            var packet = new PacketScreen(Format, _width, _height, _dpi, _beforeImageData);
+            var packet = new PacketScreen(_beforeFrame);
             var size = FullScreenNetworks.Count;
             while(size-- > 0) {
                 if(!FullScreenNetworks.TryDequeue(out var networkManager)) continue;
@@ -73,7 +72,7 @@ namespace RemoteDesktopViewer.Threading
         private static void SendResizeFullScreen()
         {
             if (!SizeUpdated) return;
-            RemoteServer.Instance?.Broadcast(new PacketScreen(Format, _width, _height, _dpi, _beforeImageData));
+            RemoteServer.Instance?.Broadcast(new PacketScreen(_beforeFrame));
         }
 
         internal static void SendFullScreen(NetworkManager networkManager)
@@ -84,9 +83,9 @@ namespace RemoteDesktopViewer.Threading
         private static void ScreenChunk()
         {
             if (_changedData == null || _changedData.Length == 0) return;
-            if (_changedData.Length > _beforeImageData.Length >> 4)
+            if (_changedData.Length > (_beforeImageData.Length >> 4) * 1.2)
             {
-                RemoteServer.Instance?.Broadcast(new PacketScreen(Format, _width, _height, _dpi, _beforeImageData));
+                RemoteServer.Instance?.Broadcast(new PacketScreen(_beforeFrame));
                 // Debug.WriteLine($"Changed: {_changedData.Length}");
             }
             else
@@ -100,24 +99,20 @@ namespace RemoteDesktopViewer.Threading
 
         private static void TakeDesktop()
         {
+            _beforeFrame?.Dispose();
             _beforeSize = _currentSize;
             _currentSize = GetScreenSize();
-            // _bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format16bppRgb555);
-            using var bitmap = new Bitmap(_currentSize.X, _currentSize.Y, Format);
-            _width = bitmap.Width;
-            _height = bitmap.Height;
-            _dpi = new DoubleKey<float, float>(bitmap.HorizontalResolution, bitmap.VerticalResolution);
-            // _bitmap = new Bitmap(size.X, size.Y, System.Drawing.Imaging.PixelFormat.Format16bppRgb565);
+            _beforeFrame = new Bitmap(_currentSize.X, _currentSize.Y, PixelFormat.Format16bppRgb565);
   
-            using var graphics = Graphics.FromImage(bitmap);
+            using var graphics = Graphics.FromImage(_beforeFrame);
             graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(_currentSize.X, _currentSize.Y));
             if (_beforeImageData == null || SizeUpdated)
             {
-                _beforeImageData = ImageProcess.ToCompress(bitmap);
+                _beforeImageData = ImageProcess.ToCompress(_beforeFrame);
             }
             else
             {
-                _changedData = ImageProcess.ToCompress(bitmap, ref _beforeImageData);
+                _changedData = ImageProcess.ToCompress(_beforeFrame, ref _beforeImageData);
             }
         }
 

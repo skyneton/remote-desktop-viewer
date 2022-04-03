@@ -12,7 +12,7 @@ namespace RemoteDesktopViewer.Threading
     public static class FileThreadManager
     {
         private const int FileChunk = 7000;
-        private const int ThreadDelay = 10;
+        private const int ThreadDelay = 20;
         private static int _fileUploadId;
         public static void Worker(NetworkManager manager, string path)
         {

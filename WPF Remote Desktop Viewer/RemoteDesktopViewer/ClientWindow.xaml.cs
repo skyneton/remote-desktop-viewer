@@ -76,27 +76,15 @@ namespace RemoteDesktopViewer
             _bitmap.Unlock();
         }
 
-        internal void DrawFullScreen(byte[] pixels)
+        internal void DrawFullScreen(byte[] data)
         {
-            var source = pixels.ToBitmapImage();
-
+            var source = ImageProcess.ToBitmap(data);
+            var width = source.Width;
+            var height = source.Height;
+            var pixels = ImageProcess.GetPixels(source, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             Dispatcher.Invoke(() =>
             {
-                _bitmap = new WriteableBitmap(source);
-                Image.BeginInit();
-                Image.Source = _bitmap;
-                Image.EndInit();
-            });
-        }
-
-        internal void DrawFullScreen(int width, int height, double dpiX, double dpiY, PixelFormat format, int size, NibbleArray array)
-        {
-            //var pixels = array.UnLoss(size, height);
-            var pixels = array.ImageDecompress(size);
-            
-            Dispatcher.Invoke(() =>
-            {
-                _bitmap = new WriteableBitmap(width, height, dpiX, dpiY, format, null);
+                _bitmap = new WriteableBitmap(width, height, source.HorizontalResolution, source.VerticalResolution, source.PixelFormat.ToWpfPixelFormat(), null);
                 _bitmap.WritePixels(new Int32Rect(0, 0, width, height), pixels, pixels.Length / height, 0);
                 Image.BeginInit();
                 Image.Source = _bitmap;
