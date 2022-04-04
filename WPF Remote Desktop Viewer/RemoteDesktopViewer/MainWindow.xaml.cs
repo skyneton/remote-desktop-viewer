@@ -1,10 +1,14 @@
 ﻿using System;
 using System.ComponentModel;
+using System.IO;
+using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using RemoteDesktopViewer.Utils;
+using RemoteDesktopViewer.Utils.Compress;
 
 namespace RemoteDesktopViewer
 {
@@ -13,6 +17,10 @@ namespace RemoteDesktopViewer
     /// </summary>
     public partial class MainWindow
     {
+        private const string LatestGithubUrl =
+            "https://github.com/skyneton/remote-desktop-viewer/releases/latest/download/";
+        private const string ClientViewer = "RemoteClientViewer.exe";
+        private const string ClientViewerDirectory = "client";
         private const string NetworkAlreadyBind = "Network port already bind.";
         private const string FormCloseServerAlive = "Please server close.";
         private const string Error = "Error.";
@@ -22,6 +30,25 @@ namespace RemoteDesktopViewer
         public MainWindow()
         {
             InitializeComponent();
+            ClientCreate();
+        }
+
+        private static void ClientCreate()
+        {
+            var path = Path.Combine(Environment.CurrentDirectory, ClientViewerDirectory);
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
+
+            path = Path.Combine(path, ClientViewer);
+            if (!File.Exists(path))
+            {
+                
+                Task.Run(() =>
+                {
+                    using var wc = new WebClient();
+                    wc.DownloadFile($"{LatestGithubUrl}{ClientViewer}", path);
+                });
+            }
         }
 
         internal void InvokeAction(Action func)
@@ -118,25 +145,12 @@ namespace RemoteDesktopViewer
             ConnectAsync(ip, port, ClientPassword.Password);
         }
 
-        private async void ConnectAsync(string ip, int port, string password)
+        private void ConnectAsync(string ip, int port, string password)
         {
-            // Connect.IsEnabled = false;
-            // try
-            // {
-            //     var networkManager = await RemoteClient.Instance.Connect(ip, port, password);
-            //     if (networkManager == null)
-            //     {
-            //         MessageBox.Show("Can't connect or address wrong.");
-            //         Connect.IsEnabled = true;
-            //         return;
-            //     }
-            //     networkManager.CreateClientWindow().Show();
-            // }
-            // catch (Exception err)
-            // {
-            //     MessageBox.Show(err.Message);
-            // }
-            // Connect.IsEnabled = true;
+            var argument = $"-ip={ip} -port={port} -password={password}";
+            var clientPath = Path.Combine(Environment.CurrentDirectory, "client", "RemoteClientViewer.exe");
+            
+            ProcessHelper.RunAsDesktopUser(clientPath, argument);
         }
     }
 }
