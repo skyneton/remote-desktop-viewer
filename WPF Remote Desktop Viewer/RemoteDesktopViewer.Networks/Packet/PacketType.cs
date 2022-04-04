@@ -1,4 +1,4 @@
-﻿namespace RemoteDesktopViewer.Network.Packet
+﻿namespace RemoteDesktopViewer.Networks.Packet
 {
     public enum PacketType
     {

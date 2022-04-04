@@ -3,9 +3,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Windows;
-using RemoteDesktopViewer.Compress;
-using RemoteDesktopViewer.Network;
-using RemoteDesktopViewer.Network.Packet.Data;
+using RemoteClientViewer;
+using RemoteDesktopViewer.Networks;
+using RemoteDesktopViewer.Networks.Packet.Data;
+using RemoteDesktopViewer.Utils.Compress;
 
 namespace RemoteDesktopViewer.Threading
 {
@@ -17,10 +18,12 @@ namespace RemoteDesktopViewer.Threading
         public static void Worker(NetworkManager manager, string path)
         {
             var id = _fileUploadId++;
-            var bytes = ByteProcess.Compress(File.ReadAllBytes(path));
+            var isDirectory = Directory.Exists(path);
+            Debug.WriteLine(isDirectory);
+            var bytes = isDirectory ? ByteHelper.DirectoryCompress(path) : ByteHelper.Compress(File.ReadAllBytes(path));
             var name = Path.GetFileName(path);
             
-            manager.SendPacket(new PacketFileName(id, name));
+            manager.SendPacket(new PacketFileName(id, name, isDirectory));
 
             var currentIndex = 0;
             
@@ -31,7 +34,7 @@ namespace RemoteDesktopViewer.Threading
                     if (currentIndex >= bytes.Length)
                     {
                         manager.SendPacket(new PacketFileFinished(id));
-                        MainWindow.Instance.Dispatcher.Invoke(() => MessageBox.Show($"{name} Uploaded."));
+                        MainWindow.Instance.Invoke(() => MessageBox.Show($"{name} Uploaded."));
                         break;
                     }
                     manager.SendPacket(new PacketFileChunk(id, FileChunkSplit(ref currentIndex, bytes)));

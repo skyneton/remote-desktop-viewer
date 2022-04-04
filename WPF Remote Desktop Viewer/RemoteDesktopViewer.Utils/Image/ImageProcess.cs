@@ -7,21 +7,19 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Media.Imaging;
-using RemoteDesktopViewer.Compress;
-using RemoteDesktopViewer.Threading;
-using RemoteDesktopViewer.Utils;
+using RemoteDesktopViewer.Utils.Compress;
 
-namespace RemoteDesktopViewer.Image
+namespace RemoteDesktopViewer.Utils.Image
 {
     public static class ImageProcess
     {
         // private const byte MinChangePixel = 2;
-        public static byte[] ToCompress(Bitmap image, ref byte[] beforeCompressed)
+        public static byte[] ToCompress(Bitmap image, ref byte[] beforeCompressed, PixelFormat format)
         {
             using var changedPixelsStream = new MemoryStream();
             using var info = new MemoryStream();
             var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly,
-                ScreenThreadManager.Format);
+                format);
 
             var height = bitmapData.Height;
             var width = bitmapData.Width;
@@ -75,12 +73,12 @@ namespace RemoteDesktopViewer.Image
 
             beforeCompressed = pixels;
             image.UnlockBits(bitmapData);
+
+            if (changedPixelsStream.Length == 0) return null;
             
             using var ms = new MemoryStream();
             var changedPixels = changedPixelsStream.ToArray();
             var length = changedPixels.Length;
-
-            if (length == 0) return Array.Empty<byte>();
 
             // var sqrt = (int) Math.Sqrt(length) + 1;
             var compressed = ToTifImage(length, 1, PixelFormat.Format8bppIndexed, changedPixels);
@@ -98,14 +96,14 @@ namespace RemoteDesktopViewer.Image
             Write(ms, ByteBuf.GetVarInt(length));
             ms.Write(changedPixels, 0, length);
             
-            Write(ms, ByteProcess.Compress(info.ToArray()));
+            Write(ms, ByteHelper.Compress(info.ToArray()));
             
             return ms.ToArray();
         }
-        public static byte[] ToCompress(Bitmap image)
+        public static byte[] ToCompress(Bitmap image, PixelFormat format)
         {
             var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly,
-                ScreenThreadManager.Format);
+                format);
             // var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly,
             //     image.PixelFormat);
             var pixelsPer = System.Drawing.Image.GetPixelFormatSize(bitmapData.PixelFormat) >> 3;
@@ -126,8 +124,8 @@ namespace RemoteDesktopViewer.Image
                         var b = *point++;
                         var g = *point++;
                         var r = *point++;
-                        pixels[pos++] = (byte) ((b >> 6 << 6) | (g >> 5 << 3) | (r >> 5));
-                        // pixels[pos++] = (byte) ((byte) Math.Round(b / 85.0) << 6 | (byte) Math.Round(g / 36.42857142857143) << 3 | (byte) Math.Round(r / 36.42857142857143));
+                        // pixels[pos++] = (byte) ((b >> 6 << 6) | (g >> 5 << 3) | (r >> 5));
+                        pixels[pos++] = (byte) ((byte) Math.Round(b / 36.42857142857143) >> 1 << 6 | (byte) Math.Round(g / 36.42857142857143) << 3 | (byte) Math.Round(r / 36.42857142857143));
                     }
 
                     // Marshal.Copy(point, pixels, y * width, width);
@@ -232,7 +230,7 @@ namespace RemoteDesktopViewer.Image
                 // Debug.WriteLine($"Decompress: {ToMd5(pixels)}");
             }
 
-            chunk = new ByteBuf(ByteProcess.Decompress(chunk.Read(chunk.Length)));
+            chunk = new ByteBuf(ByteHelper.Decompress(chunk.Read(chunk.Length)));
             
             bitmap.Lock();
             unsafe

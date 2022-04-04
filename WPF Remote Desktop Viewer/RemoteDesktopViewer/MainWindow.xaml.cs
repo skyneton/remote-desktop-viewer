@@ -1,13 +1,9 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Net.Sockets;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using System.Windows.Media;
-using RemoteDesktopViewer.Hook;
-using RemoteDesktopViewer.Network;
 using RemoteDesktopViewer.Utils;
 
 namespace RemoteDesktopViewer
@@ -22,12 +18,9 @@ namespace RemoteDesktopViewer
         private const string Error = "Error.";
 
         private const int DefaultPort = 33062;
-        
-        public static MainWindow Instance { get; private set; }
-        
+
         public MainWindow()
         {
-            Instance = this;
             InitializeComponent();
         }
 
@@ -47,7 +40,6 @@ namespace RemoteDesktopViewer
 
         private void MainWindow_OnClosing(object sender, CancelEventArgs e)
         {
-            KeyboardManager.ShutdownHook();
             if (RemoteServer.Instance?.IsAvailable ?? false)
             {
                 MessageBox.Show(FormCloseServerAlive);
@@ -55,7 +47,6 @@ namespace RemoteDesktopViewer
             }
             else
             {
-                RemoteClient.Instance?.Close();
                 ThreadFactory.Close();
             }
         }
@@ -129,23 +120,23 @@ namespace RemoteDesktopViewer
 
         private async void ConnectAsync(string ip, int port, string password)
         {
-            Connect.IsEnabled = false;
-            try
-            {
-                var networkManager = await RemoteClient.Instance.Connect(ip, port, password);
-                if (networkManager == null)
-                {
-                    MessageBox.Show("Can't connect or address wrong.");
-                    Connect.IsEnabled = true;
-                    return;
-                }
-                networkManager.CreateClientWindow().Show();
-            }
-            catch (Exception err)
-            {
-                MessageBox.Show(err.Message);
-            }
-            Connect.IsEnabled = true;
+            // Connect.IsEnabled = false;
+            // try
+            // {
+            //     var networkManager = await RemoteClient.Instance.Connect(ip, port, password);
+            //     if (networkManager == null)
+            //     {
+            //         MessageBox.Show("Can't connect or address wrong.");
+            //         Connect.IsEnabled = true;
+            //         return;
+            //     }
+            //     networkManager.CreateClientWindow().Show();
+            // }
+            // catch (Exception err)
+            // {
+            //     MessageBox.Show(err.Message);
+            // }
+            // Connect.IsEnabled = true;
         }
     }
 }

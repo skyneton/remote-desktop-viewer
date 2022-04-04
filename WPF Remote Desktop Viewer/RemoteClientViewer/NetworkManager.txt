@@ -1,0 +1,29 @@
+﻿using System;
+using System.Net;
+using System.Windows;
+
+namespace RemoDteDesktopViewer.Network
+{
+    public class NetworkManager
+    {
+        public bool IsAuthenticate { get; private set; }
+        
+        public ClientWindow ClientWindow { get; private set; }
+        public bool ServerControl { get; private set; }
+
+        public int BeforeCursor { get; internal set; } = -1;
+
+        internal void UpdateServerControl(bool control)
+        {
+            ServerControl = control;
+        }
+
+        internal ClientWindow CreateClientWindow()
+        {
+            ClientWindow = new ClientWindow(this);
+            ClientWindow.Title = ((IPEndPoint) _client.Client.RemoteEndPoint).ToString();
+
+            return ClientWindow;
+        }
+    }
+}

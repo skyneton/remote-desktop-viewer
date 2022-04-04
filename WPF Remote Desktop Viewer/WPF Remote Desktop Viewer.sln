@@ -5,6 +5,12 @@ VisualStudioVersion = 16.0.31624.102
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RemoteDesktopViewer", "RemoteDesktopViewer\RemoteDesktopViewer.csproj", "{8603ABC6-7ED9-4982-A8B7-821932879086}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RemoteClientViewer", "RemoteClientViewer\RemoteClientViewer.csproj", "{0FBB804E-DB71-45F6-8CD4-6A09ED6373A7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RemoteDesktopViewer.Networks", "RemoteDesktopViewer.Networks\RemoteDesktopViewer.Networks.csproj", "{FD0ABB31-72F7-4164-950B-B765952B03B8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RemoteDesktopViewer.Utils", "RemoteDesktopViewer.Utils\RemoteDesktopViewer.Utils.csproj", "{111D86AF-5DCC-4836-9329-98115BE6E33F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +21,18 @@ Global
 		{8603ABC6-7ED9-4982-A8B7-821932879086}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8603ABC6-7ED9-4982-A8B7-821932879086}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8603ABC6-7ED9-4982-A8B7-821932879086}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0FBB804E-DB71-45F6-8CD4-6A09ED6373A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0FBB804E-DB71-45F6-8CD4-6A09ED6373A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0FBB804E-DB71-45F6-8CD4-6A09ED6373A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0FBB804E-DB71-45F6-8CD4-6A09ED6373A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FD0ABB31-72F7-4164-950B-B765952B03B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD0ABB31-72F7-4164-950B-B765952B03B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD0ABB31-72F7-4164-950B-B765952B03B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD0ABB31-72F7-4164-950B-B765952B03B8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{111D86AF-5DCC-4836-9329-98115BE6E33F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{111D86AF-5DCC-4836-9329-98115BE6E33F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{111D86AF-5DCC-4836-9329-98115BE6E33F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{111D86AF-5DCC-4836-9329-98115BE6E33F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

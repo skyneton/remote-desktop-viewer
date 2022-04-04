@@ -56,23 +56,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="ClientWindow.xaml.cs">
-      <DependentUpon>ClientWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Compress\ByteProcess.cs" />
-    <Compile Include="Hook\KeyboardManager.cs" />
-    <Compile Include="Image\ImageProcess.cs" />
-    <Compile Include="Network\NetworkBuf.cs" />
-    <Compile Include="Network\Packet\Data\PacketFile.cs" />
-    <Compile Include="Threading\FileThreadManager.cs" />
+    <Compile Include="FileReceiveHelper.cs" />
+    <Compile Include="Network\Network.cs" />
+    <Compile Include="RemoteServer.cs" />
     <Compile Include="Threading\ScreenThreadManager.cs" />
-    <Compile Include="Utils\ByteBuf.cs" />
-    <Compile Include="Utils\NibbleArray.cs" />
-    <Compile Include="Utils\RemoteExtensions.cs" />
-    <Compile Include="Utils\ThreadFactory.cs" />
-    <Compile Include="Utils\TimeManager.cs" />
-    <Compile Include="Utils\DoubleKey.cs" />
-    <Page Include="ClientWindow.xaml" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -87,17 +74,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Network\NetworkManager.cs" />
-    <Compile Include="Network\Packet\Data\PacketDisconnect.cs" />
-    <Compile Include="Network\Packet\Data\PacketKeepAlive.cs" />
-    <Compile Include="Network\Packet\Data\PacketLogin.cs" />
-    <Compile Include="Network\Packet\Data\PacketScreen.cs" />
-    <Compile Include="Network\Packet\Data\PacketServerControl.cs" />
-    <Compile Include="Network\Packet\Packet.cs" />
-    <Compile Include="Network\Packet\PacketManager.cs" />
-    <Compile Include="Network\Packet\PacketType.cs" />
-    <Compile Include="Network\RemoteClient.cs" />
-    <Compile Include="Network\RemoteServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -114,6 +90,16 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="app.manifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RemoteDesktopViewer.Networks\RemoteDesktopViewer.Networks.csproj">
+      <Project>{fd0abb31-72f7-4164-950b-b765952b03b8}</Project>
+      <Name>RemoteDesktopViewer.Networks</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\RemoteDesktopViewer.Utils\RemoteDesktopViewer.Utils.csproj">
+      <Project>{111d86af-5dcc-4836-9329-98115be6e33f}</Project>
+      <Name>RemoteDesktopViewer.Utils</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

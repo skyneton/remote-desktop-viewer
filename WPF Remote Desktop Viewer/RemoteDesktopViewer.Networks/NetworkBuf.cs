@@ -1,7 +1,7 @@
 ﻿using System;
 using RemoteDesktopViewer.Utils;
 
-namespace RemoteDesktopViewer.Network
+namespace RemoteDesktopViewer.Networks
 {
     public class NetworkBuf
     {

@@ -1,6 +1,6 @@
 ﻿using RemoteDesktopViewer.Utils;
 
-namespace RemoteDesktopViewer.Network.Packet.Data
+namespace RemoteDesktopViewer.Networks.Packet.Data
 {
     public class PacketKeepAlive : IPacket
     {
@@ -9,9 +9,8 @@ namespace RemoteDesktopViewer.Network.Packet.Data
             buf.WriteVarInt((int) PacketType.KeepAlive);
         }
 
-        public void Read(NetworkManager networkManager, ByteBuf buf)
+        public void Read(ByteBuf buf)
         {
-            throw new System.NotImplementedException();
         }
     }
 }

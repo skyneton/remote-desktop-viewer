@@ -1,11 +1,11 @@
 ﻿using RemoteDesktopViewer.Utils;
 
-namespace RemoteDesktopViewer.Network.Packet
+namespace RemoteDesktopViewer.Networks.Packet
 {
     public interface IPacket
     {
         void Write(ByteBuf buf);
 
-        void Read(NetworkManager networkManager, ByteBuf buf);
+        void Read(ByteBuf buf);
     }
 }
