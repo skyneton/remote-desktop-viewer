@@ -36,10 +36,13 @@ namespace RemoteDesktopViewer
             var buf = new ByteBuf(stream.GetBytes());
             var name = buf.ReadString();
             var isDirectory = buf.ReadBool();
+            Debug.WriteLine("Compress");
+            Debug.WriteLine(isDirectory);
             var path = FileHelper.GetDesktopFilePath(name);
+            Debug.WriteLine(path);
             try
             {
-                if (!isDirectory)
+                if (isDirectory)
                 {
                     ByteHelper.DirectoryDecompress(path, buf.Read(buf.Length));
                     return;

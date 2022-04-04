@@ -42,7 +42,6 @@ namespace RemoteDesktopViewer.Utils.Compress
         {
             var tempPath = FileHelper.GetFileName(Path.GetTempPath(), "rdv_decompressed.zip");
             File.WriteAllBytes(tempPath, zip);
-            Debug.WriteLine(tempPath);
             ZipFile.ExtractToDirectory(tempPath, path);
         }
     }

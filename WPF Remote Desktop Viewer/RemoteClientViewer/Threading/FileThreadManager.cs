@@ -12,14 +12,13 @@ namespace RemoteDesktopViewer.Threading
 {
     public static class FileThreadManager
     {
-        private const int FileChunk = 7000;
+        private const int FileChunk = 10000;
         private const int ThreadDelay = 20;
         private static int _fileUploadId;
         public static void Worker(NetworkManager manager, string path)
         {
             var id = _fileUploadId++;
             var isDirectory = Directory.Exists(path);
-            Debug.WriteLine(isDirectory);
             var bytes = isDirectory ? ByteHelper.DirectoryCompress(path) : ByteHelper.Compress(File.ReadAllBytes(path));
             var name = Path.GetFileName(path);
             
