@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -169,7 +170,7 @@ namespace RemoteDesktopViewer
         {
             var argument = $"-ip={ip} -port={port} -password={password}";
             var clientPath = Path.Combine(Environment.CurrentDirectory, "client", "RemoteClientViewer.exe");
-            
+
             ProcessHelper.RunAsDesktopUser(clientPath, argument);
         }
     }
