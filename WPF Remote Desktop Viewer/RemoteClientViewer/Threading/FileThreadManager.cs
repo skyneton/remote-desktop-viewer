@@ -3,17 +3,16 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Windows;
-using RemoteClientViewer;
 using RemoteDesktopViewer.Networks;
 using RemoteDesktopViewer.Networks.Packet.Data;
 using RemoteDesktopViewer.Utils.Compress;
 
-namespace RemoteDesktopViewer.Threading
+namespace RemoteClientViewer.Threading
 {
     public static class FileThreadManager
     {
         private const int FileChunk = 10000;
-        private const int ThreadDelay = 20;
+        private const int ThreadDelay = 10;
         private static int _fileUploadId;
         public static void Worker(NetworkManager manager, string path)
         {

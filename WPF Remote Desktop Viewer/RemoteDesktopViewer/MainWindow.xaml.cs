@@ -8,7 +8,6 @@ using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using RemoteDesktopViewer.Utils;
-using RemoteDesktopViewer.Utils.Compress;
 
 namespace RemoteDesktopViewer
 {
@@ -21,6 +20,10 @@ namespace RemoteDesktopViewer
             "https://github.com/skyneton/remote-desktop-viewer/releases/latest/download/";
         private const string ClientViewer = "RemoteClientViewer.exe";
         private const string ClientViewerDirectory = "client";
+
+        private const string NetworkDll = "RemoteDesktopViewer.Networks.dll";
+        private const string UtilsDll = "RemoteDesktopViewer.Utils.dll";
+        
         private const string NetworkAlreadyBind = "Network port already bind.";
         private const string FormCloseServerAlive = "Please server close.";
         private const string Error = "Error.";
@@ -30,25 +33,42 @@ namespace RemoteDesktopViewer
         public MainWindow()
         {
             InitializeComponent();
-            ClientCreate();
+            Task.Run(() =>
+            {
+                CreateDll();
+                CreateClient();
+            });
         }
 
-        private static void ClientCreate()
+        private static void CreateDll()
+        {
+            GitDownload(Path.Combine(Environment.CurrentDirectory, NetworkDll));
+            GitDownload(Path.Combine(Environment.CurrentDirectory, UtilsDll));
+        }
+
+        private static void CreateClient()
         {
             var path = Path.Combine(Environment.CurrentDirectory, ClientViewerDirectory);
-            if (!Directory.Exists(path))
-                Directory.CreateDirectory(path);
+            if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+            GitDownload(Path.Combine(path, ClientViewer));
+            
+            Copy(Path.Combine(Environment.CurrentDirectory, NetworkDll), Path.Combine(path, NetworkDll));
+            Copy(Path.Combine(Environment.CurrentDirectory, UtilsDll), Path.Combine(path, UtilsDll));
+        }
 
-            path = Path.Combine(path, ClientViewer);
-            if (!File.Exists(path))
-            {
-                
-                Task.Run(() =>
-                {
-                    using var wc = new WebClient();
-                    wc.DownloadFile($"{LatestGithubUrl}{ClientViewer}", path);
-                });
-            }
+        private static void GitDownload(string filePath)
+        {
+            if (File.Exists(filePath)) return;
+            var name = Path.GetFileName(filePath);
+
+            using var wc = new WebClient();
+            wc.DownloadFile($"{LatestGithubUrl}{name}", filePath);
+        }
+
+        private static void Copy(string origin, string path)
+        {
+            if (File.Exists(path)) return;
+            File.Copy(origin, path);
         }
 
         internal void InvokeAction(Action func)

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace RemoteDesktopViewer.Utils
 {
 
-    public static class RemoveExtensions
+    public static class RemoteExtensions
     {
         public static void Remove<T>(this ConcurrentBag<T> data, T target)
         {
@@ -39,6 +39,13 @@ namespace RemoteDesktopViewer.Utils
             {
                 data.Enqueue(item);
             }
+        }
+
+        public static T2 GetValueOrDefault<T1, T2>(this Dictionary<T1, T2> dict, T1 key, T2 defaultValue)
+        {
+            return dict.TryGetValue(key, out var value)
+                ? value
+                : defaultValue;
         }
     }
 }
