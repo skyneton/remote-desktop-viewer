@@ -41,8 +41,8 @@ namespace RemoteDesktopViewer.Utils.Image
                         var b = *point++;
                         var g = *point++;
                         var r = *point++;
-                        pixels[pos++] = (byte) ((b >> 6 << 6) | (g >> 5 << 3) | (r >> 5));
-                        
+                        pixels[pos++] = (byte)((byte)Math.Round(b / 36.42857142857143) >> 1 << 6 | (byte)Math.Round(g / 36.42857142857143) << 3 | (byte)Math.Round(r / 36.42857142857143));
+
                         var check = pos - 1;
                         changed = pixels[check] != beforeCompressed[check];
                         
