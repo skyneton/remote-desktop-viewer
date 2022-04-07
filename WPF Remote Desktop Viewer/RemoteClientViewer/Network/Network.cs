@@ -36,7 +36,7 @@ namespace RemoteClientViewer.Network
                     Disconnect();
                     break;
                 case PacketScreen packet:
-                    MainWindow.Instance.DrawFullScreen(packet.Data);
+                    MainWindow.Instance.DrawFullScreen(packet.Width, packet.Height, packet.Format, packet.Data);
                     break;
                 case PacketScreenChunk packet:
                     MainWindow.Instance.DrawScreenChunk(new ByteBuf(packet.Data));

@@ -4,22 +4,34 @@ namespace RemoteDesktopViewer.Networks.Packet.Data
 {
     public class PacketScreen : IPacket
     {
+        public int Width { get; private set; }
+        public int Height { get; private set; }
+        public byte Format { get; private set; }
         public byte[] Data { get; private set; }
         public PacketScreen() {}
 
-        public PacketScreen(byte[] jpeg)
+        public PacketScreen(int width, int height, byte format, byte[] data)
         {
-            Data = jpeg;
+            Width = width;
+            Height = height;
+            Format = format;
+            Data = data;
         }
 
         public void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.Screen);
+            buf.WriteVarInt(Width);
+            buf.WriteVarInt(Height);
+            buf.WriteByte(Format);
             buf.Write(Data);
         }
 
         public void Read(ByteBuf buf)
         {
+            Width = buf.ReadVarInt();
+            Height = buf.ReadVarInt();
+            Format = (byte) buf.ReadByte();
             Data = buf.Read(buf.Length);
         }
     }

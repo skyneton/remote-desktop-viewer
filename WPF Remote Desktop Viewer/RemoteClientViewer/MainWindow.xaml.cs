@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
@@ -9,6 +10,7 @@ using RemoteClientViewer.Threading;
 using RemoteDesktopViewer.Hook;
 using RemoteDesktopViewer.Networks.Packet.Data;
 using RemoteDesktopViewer.Utils;
+using RemoteDesktopViewer.Utils.Compress;
 using RemoteDesktopViewer.Utils.Image;
 
 namespace RemoteClientViewer
@@ -90,16 +92,14 @@ namespace RemoteClientViewer
                 action.Invoke();
         }
 
-        internal void DrawFullScreen(byte[] data)
+        internal void DrawFullScreen(int width, int height, int format, byte[] data)
         {
             var source = ImageProcess.ToBitmap(data);
-            var width = source.Width;
-            var height = source.Height;
-            var pixels = ImageProcess.GetPixels(source, System.Drawing.Imaging.PixelFormat.Format16bppRgb565);
+            var pixels = ImageProcess.GetPixels(source, PixelFormatHelper.FromId(format));
             Dispatcher.Invoke(() =>
             {
-                _bitmap = new WriteableBitmap(width, height, source.HorizontalResolution, source.VerticalResolution,
-                    System.Windows.Media.PixelFormats.Bgr565/*PixelFormatHelper.ToWpfPixelFormat(source.PixelFormat)*/, null);
+                _bitmap = new WriteableBitmap(width, height, 96, 96,
+                    PixelFormatHelper.ToPixelFormat(format), null);
                 _bitmap.WritePixels(new Int32Rect(0, 0, width, height), pixels, pixels.Length / height, 0);
                 Image.BeginInit();
                 Image.Source = _bitmap;
@@ -109,7 +109,8 @@ namespace RemoteClientViewer
         
         internal void DrawScreenChunk(ByteBuf buf)
         {
-            Dispatcher.Invoke(() => ImageProcess.DecompressChunk(_bitmap, buf));
+            //Dispatcher.Invoke(() => ImageProcess.DecompressChunk(_bitmap, buf));
+            Task.Run(() => ImageProcess.DecompressChunkPalette(_bitmap, buf));
         }
         
         private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)

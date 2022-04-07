@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.IO.Packaging;
@@ -30,6 +31,18 @@ namespace RemoteDesktopViewer.Utils.Compress
             return result.ToArray();
         }
 
+        public static byte[] GZipCompress(byte[] input)
+        {
+            using var ms = new MemoryStream();
+            using (var zip = new GZipStream(ms, CompressionMode.Compress))
+            {
+                zip.Write(input, 0, input.Length);
+                zip.Flush();
+            }
+
+            return ms.ToArray();
+        }
+
         public static byte[] DirectoryCompress(string path)
         {
             var tempPath = FileHelper.GetFileName(Path.GetTempPath(), "rdv_compressed.zip");
@@ -43,6 +56,76 @@ namespace RemoteDesktopViewer.Utils.Compress
             var tempPath = FileHelper.GetFileName(Path.GetTempPath(), "rdv_decompressed.zip");
             File.WriteAllBytes(tempPath, zip);
             ZipFile.ExtractToDirectory(tempPath, path);
+        }
+
+        public static void CreateCompactArray(MemoryStream ms, int bitsPerBlock, ByteBuf pixelPalette)
+        {
+            ushort buffer = 0;
+            var bitIndex = 0;
+            var length = pixelPalette.Length >> 1;
+            //Write(ms, ByteBuf.GetVarInt((pixelPalette.Length * bitsPerBlock) >> 3));
+
+            for (var i = 0; i < length; i++)
+            {
+                var value = (ushort)pixelPalette.ReadShort();
+                buffer |= (ushort)(value << bitIndex);
+                var remaining = bitsPerBlock - (16 - bitIndex);
+                if (remaining >= 0)
+                {
+                    //ms.Write(BitConverter.GetBytes((short)IPAddress.HostToNetworkOrder(buffer)), 0, 2);
+                    ms.WriteByte((byte)(buffer >> 8));
+                    ms.WriteByte((byte)buffer);
+                    buffer = (ushort)(value >> (bitsPerBlock - remaining));
+                    bitIndex = remaining;
+                }
+                else
+                    bitIndex += bitsPerBlock;
+            }
+
+            if (bitIndex > 0)
+            {
+                ms.WriteByte((byte)(buffer >> 8));
+                ms.WriteByte((byte)buffer);
+            }
+        }
+
+        public static void IterateCompactArray(int bitsPerBlock, int length, byte[] lowData, Action<int, int> action)
+        {
+            var buf = new ByteBuf(lowData);
+            var lowLength = lowData.Length >> 1;
+            var data = new ushort[lowLength];
+
+            for (var i = 0; i < lowLength; i++)
+                data[i] = (ushort)buf.ReadShort();
+
+            var maxEntryValue = (1L << bitsPerBlock) - 1;
+            for (var i = 0; i < length; i++)
+            {
+                var bitIndex = i * bitsPerBlock;
+                var start = bitIndex >> 4;
+                var end = (bitIndex + bitsPerBlock - 1) >> 4;
+                var startBitSub = bitIndex & 15;
+                int value;
+                if (start == end)
+                {
+                    value = (int)(data[start] >> startBitSub & maxEntryValue);
+                }
+                else
+                {
+                    var endBitSubIndex = 16 - startBitSub;
+                    value = (int)((data[start] >> startBitSub | data[end] << endBitSubIndex) & maxEntryValue);
+                }
+                action.Invoke(i, value);
+            }
+        }
+
+        public static byte GetBitsPerBlock(int paletteSize)
+        {
+            byte bitsPerBlock = 4;
+            while (paletteSize > 1 << bitsPerBlock)
+                bitsPerBlock++;
+
+            return bitsPerBlock;
         }
     }
 }

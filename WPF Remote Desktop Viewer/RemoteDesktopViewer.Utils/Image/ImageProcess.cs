@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -16,15 +17,15 @@ namespace RemoteDesktopViewer.Utils.Image
         // private const byte MinChangePixel = 2;
         public static byte[] ToCompress(Bitmap image, ref byte[] beforeCompressed, PixelFormat format)
         {
-            using var changedPixelsStream = new MemoryStream();
+            using var pixelStream = new MemoryStream();
             using var info = new MemoryStream();
             var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly,
                 format);
 
+            var pixelsPer = System.Drawing.Image.GetPixelFormatSize(bitmapData.PixelFormat) >> 3;
             var height = bitmapData.Height;
             var width = bitmapData.Width;
-            var pixelsPer = System.Drawing.Image.GetPixelFormatSize(bitmapData.PixelFormat) >> 3;
-            var pixels = new byte[height * width];
+            var pixels = new byte[height * width * pixelsPer];
             var offset = bitmapData.Stride - width * pixelsPer;
             unsafe
             {
@@ -37,16 +38,18 @@ namespace RemoteDesktopViewer.Utils.Image
                     for (var x = 0; x < width; x++)
                     {
                         var before = changed;
-                        
-                        var b = *point++;
-                        var g = *point++;
-                        var r = *point++;
-                        pixels[pos++] = (byte)((byte)Math.Round(b / 36.42857142857143) >> 1 << 6 | (byte)Math.Round(g / 36.42857142857143) << 3 | (byte)Math.Round(r / 36.42857142857143));
 
-                        var check = pos - 1;
-                        changed = pixels[check] != beforeCompressed[check];
-                        
-                        if(changed) changedPixelsStream.WriteByte(pixels[check]);
+                        pixels[pos++] = *point++;
+                        pixels[pos++] = *point++;
+
+                        var check = pos - 2;
+                        changed = pixels[check] != beforeCompressed[check] || pixels[check + 1] != beforeCompressed[check + 1];
+
+                        if (changed)
+                        {
+                            pixelStream.WriteByte(pixels[check]);
+                            pixelStream.WriteByte(pixels[check+1]);
+                        }
                         if (before == changed) continue;
                         if (!before)
                             startChanged = check;
@@ -55,7 +58,6 @@ namespace RemoteDesktopViewer.Utils.Image
                             var count = check - startChanged;
                             Write(info, ByteBuf.GetVarInt(startChanged));
                             Write(info, ByteBuf.GetVarInt(count));
-                            
                         }
                     }
 
@@ -64,28 +66,25 @@ namespace RemoteDesktopViewer.Utils.Image
 
                 if (changed)
                 {
-                    var count = pos - startChanged - 1;
+                    var count = pos - startChanged - 2;
                     Write(info, ByteBuf.GetVarInt(startChanged));
                     Write(info, ByteBuf.GetVarInt(count));
-                    changedPixelsStream.Write(pixels, startChanged, count);
                 }
             }
 
             beforeCompressed = pixels;
             image.UnlockBits(bitmapData);
 
-            if (changedPixelsStream.Length == 0) return null;
-            
+            if (pixelStream.Length == 0) return null;
+
             using var ms = new MemoryStream();
-            var changedPixels = changedPixelsStream.ToArray();
+            var changedPixels = pixelStream.ToArray();
             var length = changedPixels.Length;
 
-            // var sqrt = (int) Math.Sqrt(length) + 1;
-            var compressed = ToTifImage(length, 1, PixelFormat.Format8bppIndexed, changedPixels);
-            // var compressed = ByteProcess.Compress(changedPixels);
+            var compressed = ByteHelper.Compress(changedPixels);
             if (length > compressed.Length)
             {
-                // Debug.WriteLine($"{changedPixels.Length} -> {compressed.Length}");
+                //Debug.WriteLine($"TIF: {((double)changedPixels.Length / compressed.Length).ToString("0.0000%")}, DEF: {((double)changedPixels.Length / def.Length).ToString("0.0000%")}, GZIP: {((double)changedPixels.Length / gzip.Length).ToString("0.0000%")}");
                 length = compressed.Length;
                 changedPixels = compressed;
                 ms.WriteByte(1);
@@ -97,9 +96,11 @@ namespace RemoteDesktopViewer.Utils.Image
             ms.Write(changedPixels, 0, length);
             
             Write(ms, ByteHelper.Compress(info.ToArray()));
-            
+
             return ms.ToArray();
         }
+
+        /*
         public static byte[] ToCompress(Bitmap image, PixelFormat format)
         {
             var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly,
@@ -136,13 +137,138 @@ namespace RemoteDesktopViewer.Utils.Image
             image.UnlockBits(bitmapData);
             return pixels;
         }
-        public static byte[] GetPixels(Bitmap image, PixelFormat format)
+        */
+
+        public static byte[] ToCompress(Bitmap image, PixelFormat format) => GetPixels(image, format);
+
+
+        public static byte[] CompressPalette(Bitmap image, ref byte[] beforeCompressed, PixelFormat format)
         {
-            var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly, format);
-            var pixelsPer = System.Drawing.Image.GetPixelFormatSize(bitmapData.PixelFormat) >> 3;
+            using var info = new MemoryStream();
+            using var changedPixelsStream = new MemoryStream();
+            using var paletteStream = new MemoryStream();
+            var palette = new Palette();
+
+            var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly,
+                format);
 
             var height = bitmapData.Height;
-            var width = bitmapData.Width * pixelsPer;
+            var width = bitmapData.Width;
+            var pixelsPer = System.Drawing.Image.GetPixelFormatSize(bitmapData.PixelFormat) >> 3;
+            var pixels = new byte[height * width * pixelsPer];
+            var offset = bitmapData.Stride - width * pixelsPer;
+            unsafe
+            {
+                var pos = 0;
+                var point = (byte*)bitmapData.Scan0;
+                var changed = false;
+                var startChanged = 0;
+                for (var y = 0; y < height; y++)
+                {
+                    for (var x = 0; x < width; x++)
+                    {
+                        var before = changed;
+
+                        pixels[pos++] = *point++;
+                        pixels[pos++] = *point++;
+
+                        var check = pos - 2;
+
+                        changed = pixels[check] != beforeCompressed[check] ||
+                                  pixels[check + 1] != beforeCompressed[check + 1];
+
+                        if (changed)
+                        {
+                            var index = (short)palette.GetOrCreatePaletteIndex((short)((pixels[check] << 8) | pixels[check + 1]));
+                            paletteStream.WriteByte((byte)(index >> 8));
+                            paletteStream.WriteByte((byte)index);
+                            changedPixelsStream.WriteByte(pixels[check]);
+                            changedPixelsStream.WriteByte(pixels[check + 1]);
+                        }
+                        if (before == changed) continue;
+                        if (!before)
+                            startChanged = check;
+                        else
+                        {
+                            var count = check - startChanged;
+                            Write(info, ByteBuf.GetVarInt(startChanged));
+                            Write(info, ByteBuf.GetVarInt(count));
+                        }
+                    }
+
+                    point += offset;
+                }
+
+                if (changed)
+                {
+                    var count = pos - startChanged - 2;
+                    Write(info, ByteBuf.GetVarInt(startChanged));
+                    Write(info, ByteBuf.GetVarInt(count));
+                }
+            }
+
+            beforeCompressed = pixels;
+            image.UnlockBits(bitmapData);
+
+            if (palette.Length == 0) return null;
+
+            var pixelsLength = (int)paletteStream.Length;
+
+            using var result = new MemoryStream();
+
+            var bitsPerBlock = ByteHelper.GetBitsPerBlock(palette.Length);
+            byte[] paletteCompactChunk;
+            if (bitsPerBlock * (paletteStream.Length >> 1) + palette.Length << 1 > changedPixelsStream.Length)
+            {
+                result.WriteByte(0);
+                paletteCompactChunk = changedPixelsStream.ToArray();
+                var compresed = ByteHelper.Compress(paletteCompactChunk);
+                if (changedPixelsStream.Length > compresed.Length)
+                {
+                    result.WriteByte(1);
+                    paletteCompactChunk = compresed;
+                }
+                else
+                    result.WriteByte(0);
+                changedPixelsStream.Dispose();
+            }
+            else
+            {
+                result.WriteByte(1);
+
+                var paletteLength = palette.Length;
+                Write(result, ByteBuf.GetVarInt(paletteLength));
+                for (var i = 0; i < paletteLength; i++)
+                {
+                    result.WriteByte((byte)(palette[i] >> 8));
+                    result.WriteByte((byte)palette[i]);
+                }
+
+                using var ms = new MemoryStream();
+                ByteHelper.CreateCompactArray(ms, ByteHelper.GetBitsPerBlock(palette.Length), new ByteBuf(paletteStream.ToArray()));
+                paletteCompactChunk = ByteHelper.Compress(ms.ToArray());
+                paletteStream.Dispose();
+                ms.Dispose();
+
+                Write(result, ByteBuf.GetVarInt(pixelsLength));
+            }
+            var paletteCompactLength = paletteCompactChunk.Length;
+            Write(result, ByteBuf.GetVarInt(paletteCompactLength));
+            result.Write(paletteCompactChunk, 0, paletteCompactLength);
+            Write(result, ByteHelper.Compress(info.ToArray()));
+
+            info.Dispose();
+            return result.ToArray();
+        }
+
+        public static byte[] GetPixels(Bitmap image, PixelFormat format)
+        {
+            var width = image.Width;
+            var height = image.Height;
+            var bitmapData = image.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, format);
+            var pixelsPer = System.Drawing.Image.GetPixelFormatSize(bitmapData.PixelFormat) >> 3;
+
+            width *= pixelsPer;
             var pixels = new byte[height * width];
             var point = bitmapData.Scan0;
             for (var y = 0; y < height; y++)
@@ -223,11 +349,7 @@ namespace RemoteDesktopViewer.Utils.Image
             var pixels = chunk.Read(chunk.ReadVarInt());
             if (compressed)
             {
-                // pixels = ByteProcess.Decompress(pixels);
-                using var palette = ToBitmap(pixels);
-                pixels = GetPixels(palette, PixelFormat.Format8bppIndexed);
-                // Debug.WriteLine($"Decom: {pixels.Length}");
-                // Debug.WriteLine($"Decompress: {ToMd5(pixels)}");
+                pixels = ByteHelper.Decompress(pixels);
             }
 
             chunk = new ByteBuf(ByteHelper.Decompress(chunk.Read(chunk.Length)));
@@ -239,17 +361,72 @@ namespace RemoteDesktopViewer.Utils.Image
                 var backBuffer = (byte*) bitmap.BackBuffer;
                 while (chunk.Length > 0)
                 {
-                    var pos = chunk.ReadVarInt() * 3;
+                    var pos = chunk.ReadVarInt();
                     var length = chunk.ReadVarInt();
-                    // Debug.WriteLine($"Changed: {pixels.Length} pixelPos: {pixelPos} Length: {length} pos: {pos}");
                     for (var i = 0; i < length; i++)
                     {
-                        var bgr = pixels[pixelPos++];
-                        *(backBuffer + pos++) = (byte) Math.Round((bgr >> 6 << 1 | (bgr & 1)) * 36.42857142857143);
-                        // *(backBuffer + pos++) = (byte) Math.Round((bgr >> 6) * 85.0);
-                        *(backBuffer + pos++) = (byte) Math.Round((bgr >> 3 & 0x7) * 36.42857142857143);
-                        *(backBuffer + pos++) = (byte) Math.Round((bgr & 0x7) * 36.42857142857143);
-                        // *(backBuffer + pos++) = pixels[pixelPos++];
+                        *(backBuffer + pos++) = pixels[pixelPos++];
+                    }
+                }
+            }
+            bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
+            bitmap.Unlock();
+        }
+
+
+        public static void DecompressChunkPalette(WriteableBitmap bitmap, ByteBuf buf)
+        {
+            var isPalette = buf.ReadBool();
+            byte[] pixels;
+            if (!isPalette)
+            {
+                var compressed = buf.ReadBool();
+                pixels = buf.Read(buf.ReadVarInt());
+                if (compressed)
+                    pixels = ByteHelper.Decompress(pixels);
+            }
+            else
+            {
+                var paletteLength = buf.ReadVarInt();
+                var palette = new Palette(paletteLength);
+                for (var i = 0; i < paletteLength; i++)
+                {
+                    palette.GetOrCreatePaletteIndex(buf.ReadShort());
+                }
+
+                var pixelLength = buf.ReadVarInt();
+                var compactChunk = ByteHelper.Decompress(buf.Read(buf.ReadVarInt()));
+                var compactLength = compactChunk.Length;
+                pixels = new byte[pixelLength];
+                ByteHelper.IterateCompactArray(ByteHelper.GetBitsPerBlock(paletteLength), pixelLength >> 1, compactChunk,
+                    (index, paletteIndex) =>
+                    {
+                        var bgr = palette[paletteIndex];
+                        index <<= 1;
+                        pixels[index] = (byte)(bgr >> 8);
+                        pixels[index + 1] = (byte)bgr;
+                    });
+            }
+
+            var info = new ByteBuf(ByteHelper.Decompress(buf.Read(buf.Length)));
+
+            bitmap.Dispatcher.Invoke(() => DecompressChunkPalette(pixels, info, bitmap));
+        }
+
+        private static void DecompressChunkPalette(byte[] pixels, ByteBuf info, WriteableBitmap bitmap)
+        {
+            bitmap.Lock();
+            unsafe
+            {
+                var pixelPos = 0;
+                var backBuffer = (byte*)bitmap.BackBuffer;
+                while (info.Length > 0)
+                {
+                    var pos = info.ReadVarInt();
+                    var length = info.ReadVarInt();
+                    for (var i = 0; i < length; i++)
+                    {
+                        *(backBuffer + pos++) = pixels[pixelPos++];
                     }
                 }
             }

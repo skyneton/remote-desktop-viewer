@@ -46,6 +46,27 @@ namespace RemoteDesktopViewer.Utils
             };
         }
 
+        public static int ToId(PixelFormat format)
+        {
+            return format switch
+            {
+                PixelFormat.Format1bppIndexed => 0,
+                PixelFormat.Format4bppIndexed => 1,
+                PixelFormat.Format8bppIndexed => 2,
+                PixelFormat.Format16bppGrayScale => 3,
+                PixelFormat.Format16bppRgb555 => 4,
+                PixelFormat.Format16bppRgb565 => 5,
+                PixelFormat.Format24bppRgb => 6,
+                PixelFormat.Format32bppRgb => 7,
+                PixelFormat.Format32bppArgb => 8,
+                PixelFormat.Format32bppPArgb => 9,
+                PixelFormat.Format48bppRgb => 10,
+                PixelFormat.Format64bppArgb => 11,
+                PixelFormat.Format64bppPArgb => 12,
+                _ => 13
+            };
+        }
+
         public static System.Windows.Media.PixelFormat ToPixelFormat(int id)
         {
             return id switch
@@ -64,6 +85,27 @@ namespace RemoteDesktopViewer.Utils
                 11 => System.Windows.Media.PixelFormats.Rgba64,
                 12 => System.Windows.Media.PixelFormats.Prgba64,
                 _ => System.Windows.Media.PixelFormats.Default
+            };
+        }
+
+        public static PixelFormat FromId(int id)
+        {
+            return id switch
+            {
+                0 => PixelFormat.Format1bppIndexed,
+                1 => PixelFormat.Format4bppIndexed,
+                2 => PixelFormat.Format8bppIndexed,
+                3 => PixelFormat.Format16bppGrayScale,
+                4 => PixelFormat.Format16bppRgb555,
+                5 => PixelFormat.Format16bppRgb565,
+                6 => PixelFormat.Format24bppRgb,
+                7 => PixelFormat.Format32bppRgb,
+                8 => PixelFormat.Format32bppArgb,
+                9 => PixelFormat.Format32bppPArgb,
+                10 => PixelFormat.Format48bppRgb,
+                11 => PixelFormat.Format64bppArgb,
+                12 => PixelFormat.Format64bppPArgb,
+                _ => PixelFormat.DontCare
             };
         }
     }
