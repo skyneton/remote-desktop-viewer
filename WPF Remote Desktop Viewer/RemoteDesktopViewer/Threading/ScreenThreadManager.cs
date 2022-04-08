@@ -28,7 +28,7 @@ namespace RemoteDesktopViewer.Threading
         private const PixelFormat Format = PixelFormat.Format16bppRgb565;
         //private const PixelFormat Format = PixelFormat.Format16bppRgb565;
 
-        private static long _beforeMs = TimeManager.CurrentTimeMillis;
+        //private static long _beforeMs = TimeManager.CurrentTimeMillis;
 
         internal static void Worker()
         {
@@ -58,8 +58,8 @@ namespace RemoteDesktopViewer.Threading
 
                     Thread.Sleep(ThreadDelay);
 
-                    Debug.WriteLine(TimeManager.CurrentTimeMillis - _beforeMs + "ms");
-                    _beforeMs = TimeManager.CurrentTimeMillis;
+                    //Debug.WriteLine(TimeManager.CurrentTimeMillis - _beforeMs + "ms");
+                    //_beforeMs = TimeManager.CurrentTimeMillis;
                 }
                 catch (Exception e)
                 {
@@ -94,7 +94,6 @@ namespace RemoteDesktopViewer.Threading
         private static void ScreenChunk(byte[] compressedImage)
         {
             if (_changedData == null || _changedData.Length == 0) return;
-            // if (_changedData.Length > (_beforeImageData.Length >> 4) * 1.2)
             if (_changedData.Length > compressedImage.Length)
             {
                 // Debug.WriteLine($"{_changedData.Length} -> {jpeg.Length}");
@@ -114,7 +113,7 @@ namespace RemoteDesktopViewer.Threading
             _beforeFrame = new Bitmap(CurrentSize.X, CurrentSize.Y, Format);
 
             using var graphics = Graphics.FromImage(_beforeFrame);
-            graphics.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(CurrentSize.X, CurrentSize.Y));
+            graphics.CopyFromScreen(0, 0, 0, 0, new Size(CurrentSize.X, CurrentSize.Y));
 
             if (_beforeImageData == null || SizeUpdated)
             {
@@ -126,7 +125,7 @@ namespace RemoteDesktopViewer.Threading
             }
         }
 
-        public static DoubleKey<int, int> GetScreenSize()
+        private static DoubleKey<int, int> GetScreenSize()
         {
             using var g = Graphics.FromHwnd(IntPtr.Zero);
             var hdc = g.GetHdc();
@@ -134,29 +133,6 @@ namespace RemoteDesktopViewer.Threading
                 LowHelper.GetDeviceCaps(hdc, (int) LowHelper.DeviceCaps.DesktopHorzres),
                 LowHelper.GetDeviceCaps(hdc, (int) LowHelper.DeviceCaps.DesktopVertres)
                 );
-            // return new DoubleKey<int, int>(
-            //     (int) Math.Round(SystemParameters.PrimaryScreenWidth * scale),
-            //     (int) Math.Round(SystemParameters.PrimaryScreenHeight * scale)
-            // );
         }
-
-        // private static bool GetDpi(out int dpi)
-        // {
-        //     using var g = Graphics.FromHwnd(IntPtr.Zero);
-        //     Debug.WriteLine($"{GetDeviceCaps(g.GetHdc(), (int) DeviceCaps.DesktopHorzres)}");
-        //     try
-        //     {
-        //         var dpiInfo =
-        //             typeof(SystemParameters).GetProperty("Dpi", BindingFlags.NonPublic | BindingFlags.Static);
-        //
-        //         dpi = (int) (dpiInfo?.GetValue(null, null) ?? 96);
-        //         return true;
-        //     }
-        //     catch (Exception)
-        //     {
-        //         dpi = 96;
-        //         return false;
-        //     }
-        // }
     }
 }
