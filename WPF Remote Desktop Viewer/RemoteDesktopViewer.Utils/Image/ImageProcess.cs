@@ -68,7 +68,6 @@ namespace RemoteDesktopViewer.Utils.Image
                     var count = pos - startChanged - 1;
                     Write(info, ByteBuf.GetVarInt(startChanged));
                     Write(info, ByteBuf.GetVarInt(count));
-                    changedPixelsStream.Write(pixels, startChanged, count);
                 }
             }
             
