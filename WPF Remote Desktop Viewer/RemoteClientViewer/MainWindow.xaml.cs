@@ -109,8 +109,9 @@ namespace RemoteClientViewer
         
         internal void DrawScreenChunk(ByteBuf buf)
         {
-            //Dispatcher.Invoke(() => ImageProcess.DecompressChunk(_bitmap, buf));
-            Task.Run(() => ImageProcess.DecompressChunkPalette(_bitmap, buf));
+            // Dispatcher.Invoke(() => ImageProcess.DecompressChunk565(_bitmap, buf));
+            // ImageProcess.DecompressChunkPalette(_bitmap, buf);
+            Dispatcher.Invoke(() => ImageProcess.DecompressChunk(_bitmap, buf));
         }
         
         private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)

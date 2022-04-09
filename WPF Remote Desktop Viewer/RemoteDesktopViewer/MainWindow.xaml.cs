@@ -173,5 +173,10 @@ namespace RemoteDesktopViewer
 
             ProcessHelper.RunAsDesktopUser(clientPath, argument);
         }
+
+        private void ServerPassword_OnPasswordChanged(object sender, RoutedEventArgs e)
+        {
+            RemoteServer.Instance?.UpdatePassword(ServerPassword.Password);
+        }
     }
 }

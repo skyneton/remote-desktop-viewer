@@ -64,11 +64,6 @@ namespace RemoteDesktopViewer.Networks
 
                     so.TargetSocket.BeginReceive(so.Buffer, 0, StateObject.BufferSize, 0, ReceiveAsync, so);
                 }
-
-                else
-                {
-                    Disconnect();
-                }
             }
             catch (Exception e)
             {

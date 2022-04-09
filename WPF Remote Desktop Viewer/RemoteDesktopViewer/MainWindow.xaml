@@ -92,6 +92,7 @@
                         Width="320" Height="27"
                         PasswordChar="*"
                         MaxLength="45"
+                        PasswordChanged="ServerPassword_OnPasswordChanged"
                     ></PasswordBox>
                 </Grid>
             </Border>

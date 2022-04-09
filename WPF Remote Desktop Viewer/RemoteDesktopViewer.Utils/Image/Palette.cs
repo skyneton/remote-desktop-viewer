@@ -9,7 +9,7 @@ namespace RemoteDesktopViewer.Utils.Image
 
         public int Length => _palette.Count;
 
-        public Palette() : this(2000) { }
+        public Palette() : this(6000) { }
         public Palette(int capacity)
         {
             _palette = new List<short>(capacity);
@@ -19,13 +19,15 @@ namespace RemoteDesktopViewer.Utils.Image
 
         public int GetOrCreatePaletteIndex(short pixel)
         {
-            var index = _inversePalette.GetValueOrDefault(pixel, -1);
-            if (index != -1) return index;
-            index = _palette.Count;
+            //var index = _inversePalette.GetValueOrDefault(pixel, -1);
+            if(_inversePalette.TryGetValue(pixel, out var value))
+                return value;
+            
+            value = _palette.Count;
             _palette.Add(pixel);
-            _inversePalette.Add(pixel, index);
+            _inversePalette.Add(pixel, value);
 
-            return index;
+            return value;
         }
 
         public short this[int index] => _palette[index];

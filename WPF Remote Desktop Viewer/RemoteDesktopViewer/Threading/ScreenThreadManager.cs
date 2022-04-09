@@ -14,7 +14,7 @@ namespace RemoteDesktopViewer.Threading
     public static class ScreenThreadManager
     {
         private const int ThreadEmptyDelay = 500;
-        private const int ThreadDelay = 18;
+        private const int ThreadDelay = 15;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new();
         private static DoubleKey<int, int> _beforeSize;
         public static DoubleKey<int, int> CurrentSize { get; private set; } = GetScreenSize();
@@ -25,10 +25,8 @@ namespace RemoteDesktopViewer.Threading
         private static byte[] _beforeImageData;
         private static byte[] _changedData;
 
-        private const PixelFormat Format = PixelFormat.Format16bppRgb565;
-        //private const PixelFormat Format = PixelFormat.Format16bppRgb565;
-
-        //private static long _beforeMs = TimeManager.CurrentTimeMillis;
+        private const PixelFormat Format = PixelFormat.Format24bppRgb;
+        // private const PixelFormat Format = PixelFormat.Format16bppRgb565;
 
         internal static void Worker()
         {
@@ -57,9 +55,6 @@ namespace RemoteDesktopViewer.Threading
                     ScreenChunk(jpeg);
 
                     Thread.Sleep(ThreadDelay);
-
-                    //Debug.WriteLine(TimeManager.CurrentTimeMillis - _beforeMs + "ms");
-                    //_beforeMs = TimeManager.CurrentTimeMillis;
                 }
                 catch (Exception e)
                 {
@@ -117,11 +112,11 @@ namespace RemoteDesktopViewer.Threading
 
             if (_beforeImageData == null || SizeUpdated)
             {
-                _beforeImageData = ImageProcess.ToCompress(_beforeFrame, Format);
+                _beforeImageData = ImageProcess.ToCompress233(_beforeFrame, Format);
             }
             else
             {
-                _changedData = ImageProcess.CompressPalette(_beforeFrame, ref _beforeImageData, Format);
+                _changedData = ImageProcess.ToCompress233(_beforeFrame, ref _beforeImageData, Format);
             }
         }
 

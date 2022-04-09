@@ -23,7 +23,6 @@ namespace RemoteClientViewer.Network
 
         protected override void ExceptionHandle(Exception e)
         {
-            Debug.WriteLine(e);
             MainWindow.Instance.Invoke(() => MessageBox.Show(e.Message));
         }
 
@@ -32,7 +31,7 @@ namespace RemoteClientViewer.Network
             switch (data)
             {
                 case PacketDisconnect packet:
-                    MainWindow.Instance.Invoke(() => MessageBox.Show(packet.Reason));
+                    MessageBox.Show(packet.Reason);
                     Disconnect();
                     break;
                 case PacketScreen packet:
@@ -43,6 +42,10 @@ namespace RemoteClientViewer.Network
                     break;
                 case PacketServerControl packet:
                     MainWindow.Instance.ServerControl = packet.Control;
+                    break;
+                case PacketCursorType packet:
+                    MainWindow.Instance.CursorValue = packet.Cursor;
+                    MainWindow.Instance.Invoke(() => LowHelper.SetCursor(packet.Cursor));
                     break;
             }
         }
