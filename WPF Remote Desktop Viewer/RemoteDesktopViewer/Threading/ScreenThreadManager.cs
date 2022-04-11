@@ -14,7 +14,7 @@ namespace RemoteDesktopViewer.Threading
     public static class ScreenThreadManager
     {
         private const int ThreadEmptyDelay = 500;
-        private const int ThreadDelay = 10;
+        private const int ThreadDelay = 15;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new();
         private static DoubleKey<int, int> _beforeSize;
         public static DoubleKey<int, int> CurrentSize { get; private set; } = GetScreenSize();
@@ -25,8 +25,8 @@ namespace RemoteDesktopViewer.Threading
         private static byte[] _beforeImageData;
         private static byte[] _changedData;
 
-        private const PixelFormat Format = PixelFormat.Format24bppRgb;
-        // private const PixelFormat Format = PixelFormat.Format16bppRgb565;
+        // private const PixelFormat Format = PixelFormat.Format24bppRgb;
+        private const PixelFormat Format = PixelFormat.Format16bppRgb565;
 
         internal static void Worker()
         {
@@ -89,13 +89,20 @@ namespace RemoteDesktopViewer.Threading
         {
             if (_changedData == null || _changedData.Length == 0) return;
             if (_changedData.Length > compressedImage.Length)
+            // if ((_changedData.Length >> 2) * .84 > compressedImage.Length * .96)
             {
-                // Debug.WriteLine($"{_changedData.Length} -> {jpeg.Length}");
+                // if(ByteHelper.Compress(_changedData).Length < ByteHelper.Compress(compressedImage).Length)
+                //     Debug.WriteLine($"{_changedData.Length} {ByteHelper.Compress(_changedData).Length} {compressedImage.Length} {ByteHelper.Compress(compressedImage).Length}");
+                //Debug.WriteLine($"{_changedData.Length} {_beforeImageData.Length} {ByteHelper.Compress(_changedData).Length}-> {ByteHelper.Compress(compressedImage).Length} {compressedImage.Length}");
                 RemoteServer.Instance?.Broadcast(new PacketScreen(CurrentSize.X, CurrentSize.Y, (byte)PixelFormatHelper.ToId(Format), compressedImage));
                 // Debug.WriteLine($"Changed: {_changedData.Length}");
             }
             else
+            {
+                // if(ByteHelper.Compress(_changedData).Length > ByteHelper.Compress(compressedImage).Length)
+                //     Debug.WriteLine($"{_changedData.Length} {ByteHelper.Compress(_changedData).Length} {compressedImage.Length} {ByteHelper.Compress(compressedImage).Length}");
                 RemoteServer.Instance?.Broadcast(new PacketScreenChunk(_changedData));
+            }
         }
 
         private static void TakeDesktop()
@@ -111,11 +118,11 @@ namespace RemoteDesktopViewer.Threading
 
             if (_beforeImageData == null || SizeUpdated)
             {
-                _beforeImageData = ImageProcess.ToCompress233(_beforeFrame, Format);
+                _beforeImageData = ImageProcess.Compress565(_beforeFrame, Format);
             }
             else
             {
-                _changedData = ImageProcess.ToCompress233(_beforeFrame, ref _beforeImageData, Format);
+                _changedData = ImageProcess.Compress565(_beforeFrame, ref _beforeImageData, Format);
             }
         }
 

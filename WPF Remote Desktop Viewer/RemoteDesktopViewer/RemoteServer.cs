@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using RemoteDesktopViewer.Networks;
 using RemoteDesktopViewer.Networks.Packet;
 using RemoteDesktopViewer.Networks.Packet.Data;
@@ -169,16 +169,19 @@ namespace RemoteDesktopViewer
 
         internal void Broadcast(IPacket packet, bool authenticate = true)
         {
-            var buf = new ByteBuf();
-            packet.Write(buf);
-
-            var data = NetworkManager.CompressionEnabled ? NetworkManager.Compress(buf) : buf.Flush();
-
-            foreach (var network in _networks)
+            Task.Run(() =>
             {
-                if(authenticate && !network.IsAuthenticate) continue;
-                network.SendBytes(data);
-            }
+                var buf = new ByteBuf();
+                packet.Write(buf);
+
+                var data = NetworkManager.CompressionEnabled ? NetworkManager.Compress(buf) : buf.Flush();
+
+                foreach (var network in _networks)
+                {
+                    if(authenticate && !network.IsAuthenticate) continue;
+                    network.SendBytes(data);
+                }
+            });
         }
     }
 }

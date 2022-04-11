@@ -174,8 +174,8 @@ namespace RemoteDesktopViewer.Utils.Image
             var changedPixels = changedPixelsStream.ToArray();
             var length = changedPixels.Length;
             
-            // var compressed = ByteHelper.Compress(changedPixels);
-            var compressed = ToTifImage(length, 1, PixelFormat.Format8bppIndexed, changedPixels);
+            var compressed = ByteHelper.Compress(changedPixels);
+            // var compressed = ToTifImage(length, 1, PixelFormat.Format8bppIndexed, changedPixels);
             if (length > compressed.Length)
             {
                 // Debug.WriteLine($"{changedPixels.Length} -> {compressed.Length}");
@@ -516,7 +516,7 @@ namespace RemoteDesktopViewer.Utils.Image
         public static void DecompressChunk565(WriteableBitmap bitmap, ByteBuf chunk)
         {
             var pixels = chunk.ReadBool()
-                ? DecompressTif(chunk.Read(chunk.ReadVarInt()))
+                ? ByteHelper.Decompress(chunk.Read(chunk.ReadVarInt()))
                 : chunk.Read(chunk.ReadVarInt());
 
             chunk = new ByteBuf(ByteHelper.Decompress(chunk.Read(chunk.Length)));
