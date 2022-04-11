@@ -15,7 +15,7 @@ namespace RemoteDesktopViewer.Network
         
         public int BeforeCursor { get; internal set; } = -1;
         
-        public Network(TcpClient client) : base(client)
+        public Network(Socket client) : base(client)
         {
         }
 

@@ -14,21 +14,20 @@ namespace RemoteDesktopViewer.Networks
         public const bool CompressionEnabled = true;
         private const int CompressionThreshold = 50;
         
-        private readonly TcpClient _client;
+        private readonly Socket _client;
         public bool Connected => (_client?.Connected ?? false) || IsAvailable;
         public bool IsAvailable { get; private set; }
         private long _lastPacketMillis = TimeManager.CurrentTimeMillis;
 
         private readonly NetworkBuf _receiveBuf = new();
 
-        public NetworkManager(TcpClient client)
+        public NetworkManager(Socket client)
         {
             IsAvailable = true;
-            client.SendTimeout = 500;
             client.NoDelay = true;
             _client = client;
             
-            var so = new StateObject(_client.Client);
+            var so = new StateObject(_client);
             so.TargetSocket.BeginReceive(so.Buffer, 0, StateObject.BufferSize, SocketFlags.None, ReceiveAsync, so);
         }
 
@@ -67,7 +66,6 @@ namespace RemoteDesktopViewer.Networks
             }
             catch (Exception e)
             {
-                Debug.WriteLine(e);
                 ExceptionCheck(e);
             }
         }
@@ -159,7 +157,7 @@ namespace RemoteDesktopViewer.Networks
 
                 var data = CompressionEnabled ? Compress(buf) : buf.Flush();
 
-                _client.GetStream().Write(data, 0, data.Length);
+                _client.Send(data);
                 _lastPacketMillis = TimeManager.CurrentTimeMillis;
             }
             catch (Exception e)
@@ -174,7 +172,7 @@ namespace RemoteDesktopViewer.Networks
 
             try
             {
-                _client.GetStream().Write(packet, 0, packet.Length);
+                _client.Send(packet);
                 // Debug.WriteLine($"{packet.Length} {TimeManager.CurrentTimeMillis - packetSend}ms");
                 // _client.GetStream().Flush();
                 // _client.Client.Send(packet);

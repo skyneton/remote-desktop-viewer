@@ -19,7 +19,7 @@ namespace RemoteDesktopViewer
         private const int ThreadDelay = 50;
         
         internal static RemoteServer Instance { get; private set; }
-        private TcpListener _listener;
+        private Socket _listener;
         public bool IsAvailable { get; private set; }
         private readonly ConcurrentBag<Network.Network> _networks = new();
 
@@ -47,13 +47,9 @@ namespace RemoteDesktopViewer
 
         private void InitServer()
         {
-            _listener = new TcpListener(IPAddress.Any, _port)
+            _listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
             {
-                Server =
-                {
-                    NoDelay = true,
-                    SendTimeout = 500
-                }
+                NoDelay = true
             };
         }
 
@@ -65,7 +61,7 @@ namespace RemoteDesktopViewer
                 networkManager?.Close();
             }
             
-            try {_listener.Stop();}
+            try {_listener.Close();}
             catch (Exception)
             {
                 // ignored
@@ -82,7 +78,8 @@ namespace RemoteDesktopViewer
 
             try
             {
-                _listener.Start();
+                _listener.Bind(new IPEndPoint(IPAddress.Any, _port));
+                _listener.Listen(20);
             }
             catch (Exception)
             {
@@ -90,7 +87,7 @@ namespace RemoteDesktopViewer
                 throw;
             }
 
-            _listener.BeginAcceptTcpClient(AcceptSocket, null);
+            _listener.BeginAccept(AcceptSocket, null);
             
             _threadFactory.LaunchThread(new Thread(ClientUpdateWorker), false).Name = "Client Update Thread";
             _threadFactory.LaunchThread(new Thread(ScreenThreadManager.Worker), false).Name = "Screen Thread";
@@ -100,8 +97,8 @@ namespace RemoteDesktopViewer
         {
             try
             {
-                _networks.Add(new Network.Network(_listener.EndAcceptTcpClient(result)));
-                _listener.BeginAcceptTcpClient(AcceptSocket, null);
+                _networks.Add(new Network.Network(_listener.EndAccept(result)));
+                _listener.BeginAccept(AcceptSocket, null);
             }
             catch (Exception e)
             {

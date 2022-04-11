@@ -11,7 +11,7 @@ namespace RemoteClientViewer.Network
 {
     public class Network : NetworkManager
     {
-        public Network(TcpClient client) : base(client)
+        public Network(Socket client) : base(client)
         {
         }
 

@@ -16,6 +16,8 @@
         
         Deactivated="MainWindow_OnDeactivated"
         
+        StateChanged="MainWindow_OnStateChanged"
+        
         AllowDrop="True"
         DragEnter="Window_DragEnter"
         DragOver="Window_DragOver"

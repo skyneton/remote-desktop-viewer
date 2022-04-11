@@ -14,7 +14,7 @@ namespace RemoteDesktopViewer.Threading
     public static class ScreenThreadManager
     {
         private const int ThreadEmptyDelay = 500;
-        private const int ThreadDelay = 15;
+        private const int ThreadDelay = 10;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new();
         private static DoubleKey<int, int> _beforeSize;
         public static DoubleKey<int, int> CurrentSize { get; private set; } = GetScreenSize();
@@ -48,7 +48,6 @@ namespace RemoteDesktopViewer.Threading
                     
                     Debug.WriteLine($"JPEG: {((double)_beforeImageData.Length / jpeg.Length).ToString("0.0000%")}, DEF: {((double)_beforeImageData.Length / def.Length).ToString("0.0000%")}, GZIP: {((double)_beforeImageData.Length / gzip.Length).ToString("0.0000%")}");*/
 
-                    var a = TimeManager.CurrentTimeMillis;
                     var jpeg = ImageProcess.ToJpegImage(_beforeFrame);
                     SendFullScreen(jpeg);
                     if(SendResizeFullScreen(jpeg)) continue;

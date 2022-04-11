@@ -335,5 +335,25 @@ namespace RemoteClientViewer
 
             MessageBox.Show($"Started uploading {files.Length} file(s).");
         }
+
+        private void MainWindow_OnStateChanged(object sender, EventArgs e)
+        {
+            if (WindowState == WindowState.Maximized)
+            {
+                // _isStateChange = true;
+                // WindowState = WindowState.Normal;
+                Visibility = Visibility.Collapsed;
+                WindowStyle = WindowStyle.None;
+                WindowState = WindowState.Maximized;
+                ResizeMode = ResizeMode.NoResize;
+                NormalMaxBtn.Content = "Normal";
+                Visibility = Visibility.Visible;
+                return;
+            }
+            WindowStyle = WindowStyle.SingleBorderWindow;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
+            WindowState = WindowState.Normal;
+            NormalMaxBtn.Content = "Maximize";
+        }
     }
 }

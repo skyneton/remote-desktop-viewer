@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,12 +33,12 @@ namespace RemoteClientViewer
             return Network;
         }
 
-        private Task<TcpClient> ConnectTimeout(string ip, int port, int timeout)
+        private Task<Socket> ConnectTimeout(string host, int port, int timeout)
         {
             return Task.Run(() =>
             {
-                var client = new TcpClient(AddressFamily.InterNetwork);
-                var result = client.BeginConnect(ip, port, null, null);
+                var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                var result = client.BeginConnect(host, port, null, null);
                 var connected = result.AsyncWaitHandle.WaitOne(timeout, true);
                 try
                 {
