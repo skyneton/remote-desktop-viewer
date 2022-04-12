@@ -7,6 +7,7 @@ using System.Threading;
 using RemoteDesktopViewer.Networks;
 using RemoteDesktopViewer.Networks.Packet.Data;
 using RemoteDesktopViewer.Utils;
+using RemoteDesktopViewer.Utils.Compress;
 using RemoteDesktopViewer.Utils.Image;
 
 namespace RemoteDesktopViewer.Threading
@@ -88,7 +89,7 @@ namespace RemoteDesktopViewer.Threading
         private static void ScreenChunk(byte[] compressedImage)
         {
             if (_changedData == null || _changedData.Length == 0) return;
-            if (_changedData.Length > compressedImage.Length)
+            if (_changedData.Length > compressedImage.Length * .89)
             // if ((_changedData.Length >> 2) * .84 > compressedImage.Length * .96)
             {
                 // if(ByteHelper.Compress(_changedData).Length < ByteHelper.Compress(compressedImage).Length)
