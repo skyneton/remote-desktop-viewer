@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System;
+using System.Windows;
 using System.Windows.Media;
 using RemoteDesktopViewer.Networks.Threading;
 using RemoteDesktopViewer.Utils.Clipboard;
@@ -10,7 +11,7 @@ namespace RemoteDesktopViewer
         private ClipboardManager _clipboardManager;
         private object _beforeClipboardData;
 
-        internal bool UpdateClipboard;
+        private bool _updateClipboard;
 
         public void Create(Visual window)
         {
@@ -35,13 +36,20 @@ namespace RemoteDesktopViewer
             
             _beforeClipboardData = current;
             
-            if (UpdateClipboard)
+            if (_updateClipboard)
             {
-                UpdateClipboard = false;
+                _updateClipboard = false;
                 return;
             }
 
             ClipboardThreadManager.Worker(RemoteServer.Instance.Broadcast, current);
+        }
+
+        [STAThread]
+        public void SetClipboard(object obj)
+        {
+            _updateClipboard = true;
+            Clipboard.SetDataObject(obj);
         }
     }
 }

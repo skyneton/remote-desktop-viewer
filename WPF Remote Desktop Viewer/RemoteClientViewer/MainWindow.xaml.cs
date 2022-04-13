@@ -37,7 +37,7 @@ namespace RemoteClientViewer
 
         public int CursorValue { get; internal set; } = -1;
 
-        internal ClipboardHelper _clipboardHelper = new();
+        internal readonly ClipboardHelper ClipboardHelper = new();
         
         public MainWindow()
         {
@@ -58,7 +58,7 @@ namespace RemoteClientViewer
             if (await Client.Connect(ip, port) != null)
             {
                 Client.Network.SendPacket(new PacketLogin(password));
-                _clipboardHelper.Create(this);
+                ClipboardHelper.Create(this);
                 return;
             }
             MessageBox.Show("Can't connect or address wrong.");
@@ -151,7 +151,7 @@ namespace RemoteClientViewer
         {
             KeyboardManager.RemoveCallback(KeyHookCallback);
             KeyboardManager.ShutdownHook();
-            _clipboardHelper.Close();
+            ClipboardHelper.Close();
             
             _fileUploadFactory.KillAll();
             Client.Close();
