@@ -25,8 +25,8 @@ namespace RemoteDesktopViewer.Threading
         private static byte[] _beforeImageData;
         private static byte[] _changedData;
 
-        // private const PixelFormat Format = PixelFormat.Format24bppRgb;
-        private const PixelFormat Format = PixelFormat.Format16bppRgb565;
+        private const PixelFormat Format = PixelFormat.Format24bppRgb;
+        // private const PixelFormat Format = PixelFormat.Format16bppRgb565;
 
         internal static void Worker()
         {

@@ -39,9 +39,20 @@ namespace RemoteDesktopViewer
             InitializeComponent();
             Task.Run(() =>
             {
-                var isCreated = CreateDll();
+                Dispatcher.Invoke(() =>
+                {
+                    ServerControl.IsEnabled = false;
+                    Connect.IsEnabled = false;
+                    ServerOnOff.IsEnabled = false;
+                });
+                CreateDll();
                 CreateClient();
-                if (isCreated) MessageBox.Show("Libraries download finished.\nPlease restart application.");
+                Dispatcher.Invoke(() =>
+                {
+                    ServerControl.IsEnabled = true;
+                    Connect.IsEnabled = true;
+                    ServerOnOff.IsEnabled = true;
+                });
             });
         }
 

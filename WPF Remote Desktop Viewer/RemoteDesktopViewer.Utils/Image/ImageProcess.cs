@@ -14,7 +14,7 @@ namespace RemoteDesktopViewer.Utils.Image
          * 1: 233       - PixelFormat = 24bpp
          * 2: Palette   - PixelFormat = 16bpp
          */
-        public const byte ProcessType = 0;
+        public const byte ProcessType = 1;
 
         public static byte[] Compress(Bitmap bitmap, PixelFormat format) => ProcessType switch
         {
