@@ -164,6 +164,7 @@
             <SubType>Designer</SubType>
         </ApplicationDefinition>
         <Content Include="NetworkManager.txt" />
+        <Compile Include="ClipboardHelper.cs" />
         <Compile Include="Network\Network.cs" />
         <Compile Include="RemoteClient.cs" />
         <Compile Include="Threading\FileThreadManager.cs" />

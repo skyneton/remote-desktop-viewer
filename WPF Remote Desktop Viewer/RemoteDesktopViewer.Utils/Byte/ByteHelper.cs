@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.IO.Packaging;
+using System.Runtime.Serialization.Formatters.Binary;
 
-namespace RemoteDesktopViewer.Utils.Compress
+namespace RemoteDesktopViewer.Utils.Byte
 {
-    public class ByteHelper
+    public static class ByteHelper
     {
 
         public static byte[] Compress(byte[] input)
@@ -126,6 +125,22 @@ namespace RemoteDesktopViewer.Utils.Compress
                 bitsPerBlock++;
 
             return bitsPerBlock;
+        }
+
+        public static byte[] Object2ByteArray(object obj)
+        {
+            var bf = new BinaryFormatter();
+            using var ms = new MemoryStream();
+            bf.Serialize(ms, obj);
+            
+            return ms.ToArray();
+        }
+
+        public static object ByteArray2Object(byte[] array)
+        {
+            var bf = new BinaryFormatter(); 
+            using var ms = new MemoryStream(array);
+            return bf.Deserialize(ms);
         }
     }
 }

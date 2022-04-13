@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Net.Sockets;
+using System.Windows;
 using RemoteDesktopViewer.Networks;
 using RemoteDesktopViewer.Networks.Packet;
 using RemoteDesktopViewer.Networks.Packet.Data;
+using RemoteDesktopViewer.Networks.Threading;
 using RemoteDesktopViewer.Threading;
 using RemoteDesktopViewer.Utils;
 
@@ -43,6 +45,10 @@ namespace RemoteDesktopViewer.Network
                     break;
                 case PacketFileFinished packet:
                     _helper.FileChunkFinished(packet.Id);
+                    break;
+                case PacketClipboard packet:
+                    MainWindow.Instance.ClipboardHelper.UpdateClipboard = true;
+                    Clipboard.SetDataObject(ClipboardThreadManager.GetData(packet.DataType, packet.Data));
                     break;
             }
         }

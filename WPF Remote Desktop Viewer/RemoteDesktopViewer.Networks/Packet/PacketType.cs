@@ -15,5 +15,6 @@
         FileNameEvent,
         FileChunkEvent,
         FileFinishedEvent,
+        ClipboardEvent,
     }
 }

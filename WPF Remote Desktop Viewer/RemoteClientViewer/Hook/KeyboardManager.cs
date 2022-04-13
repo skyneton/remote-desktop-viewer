@@ -3,12 +3,11 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Windows.Input;
 using RemoteDesktopViewer.Utils;
 
-namespace RemoteDesktopViewer.Hook
+namespace RemoteClientViewer.Hook
 {
-    public class KeyboardManager
+    public static class KeyboardManager
     {
         [DllImport("user32.dll")]
         private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc callback, IntPtr hInstance,

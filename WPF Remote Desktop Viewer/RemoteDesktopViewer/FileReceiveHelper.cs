@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using RemoteDesktopViewer.Utils;
-using RemoteDesktopViewer.Utils.Compress;
+using RemoteDesktopViewer.Utils.Byte;
 
 namespace RemoteDesktopViewer
 {

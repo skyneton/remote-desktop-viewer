@@ -7,7 +7,6 @@ using System.Threading;
 using RemoteDesktopViewer.Networks;
 using RemoteDesktopViewer.Networks.Packet.Data;
 using RemoteDesktopViewer.Utils;
-using RemoteDesktopViewer.Utils.Compress;
 using RemoteDesktopViewer.Utils.Image;
 
 namespace RemoteDesktopViewer.Threading
@@ -119,11 +118,11 @@ namespace RemoteDesktopViewer.Threading
 
             if (_beforeImageData == null || SizeUpdated)
             {
-                _beforeImageData = ImageProcess.Compress565(_beforeFrame, Format);
+                _beforeImageData = ImageProcess.Compress(_beforeFrame, Format);
             }
             else
             {
-                _changedData = ImageProcess.Compress565(_beforeFrame, ref _beforeImageData, Format);
+                _changedData = ImageProcess.Compress(_beforeFrame, ref _beforeImageData, Format);
             }
         }
 

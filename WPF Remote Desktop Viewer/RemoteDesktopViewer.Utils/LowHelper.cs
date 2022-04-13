@@ -27,6 +27,19 @@ namespace RemoteDesktopViewer.Utils
         [DllImport("gdi32.dll")]
         public static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
 
+        [DllImport("user32.dll")]
+        public static extern bool AddClipboardFormatListener(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        public static extern bool RemoveClipboardFormatListener(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetClipboardViewer(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern bool ChangeClipboardChain(IntPtr hWndRemove, IntPtr hWndNew);
+
+        [DllImport("user32.dll")]
+        public static extern int SendMessage(IntPtr hWnd, int wMsg, IntPtr wParam, IntPtr lParam);
+
         public enum DeviceCaps
         {
             DesktopVertres = 117,

@@ -26,6 +26,7 @@ namespace RemoteDesktopViewer.Networks.Packet
                 {(int) PacketType.FileNameEvent, typeof(PacketFileName)},
                 {(int) PacketType.FileChunkEvent, typeof(PacketFileChunk)},
                 {(int) PacketType.FileFinishedEvent, typeof(PacketFileFinished)},
+                {(int) PacketType.ClipboardEvent, typeof(PacketClipboard)},
             };
             Packets = new ReadOnlyDictionary<int, Type>(packets);
         }

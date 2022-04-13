@@ -5,7 +5,7 @@ using System.Threading;
 using System.Windows;
 using RemoteDesktopViewer.Networks;
 using RemoteDesktopViewer.Networks.Packet.Data;
-using RemoteDesktopViewer.Utils.Compress;
+using RemoteDesktopViewer.Utils.Byte;
 
 namespace RemoteClientViewer.Threading
 {

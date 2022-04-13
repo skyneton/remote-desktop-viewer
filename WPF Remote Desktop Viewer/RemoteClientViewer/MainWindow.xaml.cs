@@ -1,16 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using RemoteClientViewer.Hook;
 using RemoteClientViewer.Threading;
-using RemoteDesktopViewer.Hook;
 using RemoteDesktopViewer.Networks.Packet.Data;
 using RemoteDesktopViewer.Utils;
-using RemoteDesktopViewer.Utils.Compress;
 using RemoteDesktopViewer.Utils.Image;
 
 namespace RemoteClientViewer
@@ -23,7 +21,7 @@ namespace RemoteClientViewer
         public const int DefaultPort = 33062;
         public static MainWindow Instance { get; private set; }
         private WriteableBitmap _bitmap;
-        private RemoteClient _client;
+        internal RemoteClient Client;
         // private DoubleKey<float, float> _beforePoint = new (0, 0);
 
         private const int ShowRadis = 140;
@@ -38,10 +36,17 @@ namespace RemoteClientViewer
         public bool ServerControl { get; internal set; }
 
         public int CursorValue { get; internal set; } = -1;
+
+        internal ClipboardHelper _clipboardHelper = new();
+        
         public MainWindow()
         {
             Instance = this;
             InitializeComponent();
+        }
+
+        private void MainWindow_OnSourceInitialized(object sender, EventArgs e)
+        {
             InitServer();
         }
 
@@ -49,10 +54,11 @@ namespace RemoteClientViewer
         {
             GetAddress(out var ip, out var port, out var password);
             Title = $"{ip}:{port}";
-            _client = new RemoteClient();
-            if (await _client.Connect(ip, port) != null)
+            Client = new RemoteClient();
+            if (await Client.Connect(ip, port) != null)
             {
-                _client.Network.SendPacket(new PacketLogin(password));
+                Client.Network.SendPacket(new PacketLogin(password));
+                _clipboardHelper.Create(this);
                 return;
             }
             MessageBox.Show("Can't connect or address wrong.");
@@ -109,9 +115,7 @@ namespace RemoteClientViewer
         
         internal void DrawScreenChunk(ByteBuf buf)
         {
-            Dispatcher.Invoke(() => ImageProcess.DecompressChunk565(_bitmap, buf));
-            // ImageProcess.DecompressChunkPalette(_bitmap, buf);
-            // Dispatcher.Invoke(() => ImageProcess.DecompressChunk(_bitmap, buf));
+            ImageProcess.DecompressChunk(_bitmap, buf);
         }
         
         private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
@@ -128,13 +132,13 @@ namespace RemoteClientViewer
             switch (wParam)
             {
                 case KeyboardManager.KeyDown: case KeyboardManager.SystemKeyDown:
-                    _client.Network.SendPacket(new PacketKeyEvent((byte) vkCode, (int) LowHelper.KeyType.KeyDown));
+                    Client.Network.SendPacket(new PacketKeyEvent((byte) vkCode, (int) LowHelper.KeyType.KeyDown));
                     _pressedKey.Enqueue(key);
                     break;
                 case KeyboardManager.KeyUp: case KeyboardManager.SystemKeyUp:
                     if (_pressedKey.Contains(key))
                     {
-                        _client.Network.SendPacket(new PacketKeyEvent((byte) vkCode, (int) LowHelper.KeyType.KeyUp));
+                        Client.Network.SendPacket(new PacketKeyEvent((byte) vkCode, (int) LowHelper.KeyType.KeyUp));
                         _pressedKey.Remove(key);
                     }
 
@@ -147,9 +151,10 @@ namespace RemoteClientViewer
         {
             KeyboardManager.RemoveCallback(KeyHookCallback);
             KeyboardManager.ShutdownHook();
+            _clipboardHelper.Close();
             
             _fileUploadFactory.KillAll();
-            _client.Close();
+            Client.Close();
         }
 
         private void MainWindow_OnMouseMove(object sender, MouseEventArgs e)
@@ -161,13 +166,13 @@ namespace RemoteClientViewer
             _beforeMouseMove = now;
 
             var point = e.GetPosition(Image);
-            _client.Network.SendPacket(new PacketMouseMove((float) (point.X / Image.RenderSize.Width), (float) (point.Y / Image.RenderSize.Height)));
+            Client.Network.SendPacket(new PacketMouseMove((float) (point.X / Image.RenderSize.Width), (float) (point.Y / Image.RenderSize.Height)));
         }
 
         private void CursorShow()
         {
             if (CursorValue == -1) return;
-            LowHelper.SetCursor(CursorValue);
+            Dispatcher.Invoke(() => LowHelper.SetCursor(CursorValue));
         }
 
         private void TopMenuShow(Point point)
@@ -197,7 +202,7 @@ namespace RemoteClientViewer
             //     _client.Network.SendPacket(new PacketMouseMove(pos));
             // }
             
-            _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.Wheel, e.Delta));
+            Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.Wheel, e.Delta));
         }
 
         private void MainWindow_OnMouseDown(object sender, MouseButtonEventArgs e)
@@ -215,19 +220,19 @@ namespace RemoteClientViewer
             switch (e.ChangedButton)
             {
                 case MouseButton.Left:
-                    _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.LeftButtonDown, 0));
+                    Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.LeftButtonDown, 0));
                     break;
                 case MouseButton.Middle:
-                    _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.MiddleDown, 0));
+                    Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.MiddleDown, 0));
                     break;
                 case MouseButton.Right:
-                    _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.RightButtonDown, 0));
+                    Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.RightButtonDown, 0));
                     break;
                 case MouseButton.XButton1:
-                    _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.XButtonDown, 1));
+                    Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.XButtonDown, 1));
                     break;
                 case MouseButton.XButton2:
-                    _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.XButtonDown, 2));
+                    Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.XButtonDown, 2));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -241,19 +246,19 @@ namespace RemoteClientViewer
             switch (e.ChangedButton)
             {
                 case MouseButton.Left:
-                    _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.LeftButtonUp, 0));
+                    Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.LeftButtonUp, 0));
                     break;
                 case MouseButton.Middle:
-                    _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.MiddleUp, 0));
+                    Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.MiddleUp, 0));
                     break;
                 case MouseButton.Right:
-                    _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.RightButtonUp, 0));
+                    Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.RightButtonUp, 0));
                     break;
                 case MouseButton.XButton1:
-                    _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.XButtonUp, 1));
+                    Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.XButtonUp, 1));
                     break;
                 case MouseButton.XButton2:
-                    _client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.XButtonUp, 2));
+                    Client.Network.SendPacket(new PacketMouseEvent((int) LowHelper.MouseType.XButtonUp, 2));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -288,7 +293,7 @@ namespace RemoteClientViewer
             while (_pressedKey.Count > 0)
             {
                 var key = _pressedKey.Dequeue();
-                _client.Network.SendPacket(new PacketKeyEvent((byte) KeyInterop.VirtualKeyFromKey(key), (int) LowHelper.KeyType.KeyUp));
+                Client.Network.SendPacket(new PacketKeyEvent((byte) KeyInterop.VirtualKeyFromKey(key), (int) LowHelper.KeyType.KeyUp));
             }
         }
 
@@ -330,7 +335,7 @@ namespace RemoteClientViewer
             if (!ServerControl) return;
             foreach (var file in files)
             {
-                _fileUploadFactory.LaunchThread(new Thread(() => FileThreadManager.Worker(_client.Network, file)));
+                _fileUploadFactory.LaunchThread(new Thread(() => FileThreadManager.Worker(Client.Network, file)));
             }
 
             MessageBox.Show($"Started uploading {files.Length} file(s).");

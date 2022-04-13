@@ -18,6 +18,8 @@
         
         StateChanged="MainWindow_OnStateChanged"
         
+        SourceInitialized="MainWindow_OnSourceInitialized"
+        
         AllowDrop="True"
         DragEnter="Window_DragEnter"
         DragOver="Window_DragOver"

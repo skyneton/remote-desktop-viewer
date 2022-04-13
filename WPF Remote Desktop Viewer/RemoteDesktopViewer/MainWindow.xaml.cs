@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -17,6 +16,7 @@ namespace RemoteDesktopViewer
     /// </summary>
     public partial class MainWindow
     {
+        public static MainWindow Instance { get; private set; }
         private const string LatestGithubUrl =
             "https://github.com/skyneton/remote-desktop-viewer/releases/latest/download/";
         private const string ClientViewer = "RemoteClientViewer.exe";
@@ -31,20 +31,25 @@ namespace RemoteDesktopViewer
 
         private const int DefaultPort = 33062;
 
+        internal readonly ClipboardHelper ClipboardHelper = new();
+
         public MainWindow()
         {
+            Instance = this;
             InitializeComponent();
             Task.Run(() =>
             {
-                CreateDll();
+                var isCreated = CreateDll();
                 CreateClient();
+                if (isCreated) MessageBox.Show("Libraries download finished.\nPlease restart application.");
             });
         }
 
-        private static void CreateDll()
+        private static bool CreateDll()
         {
-            GitDownload(Path.Combine(Environment.CurrentDirectory, NetworkDll));
-            GitDownload(Path.Combine(Environment.CurrentDirectory, UtilsDll));
+            var result = GitDownload(Path.Combine(Environment.CurrentDirectory, NetworkDll));
+            result |= GitDownload(Path.Combine(Environment.CurrentDirectory, UtilsDll));
+            return result;
         }
 
         private static void CreateClient()
@@ -57,13 +62,14 @@ namespace RemoteDesktopViewer
             Copy(Path.Combine(Environment.CurrentDirectory, UtilsDll), Path.Combine(path, UtilsDll));
         }
 
-        private static void GitDownload(string filePath)
+        private static bool GitDownload(string filePath)
         {
-            if (File.Exists(filePath)) return;
+            if (File.Exists(filePath)) return false;
             var name = Path.GetFileName(filePath);
 
             using var wc = new WebClient();
             wc.DownloadFile($"{LatestGithubUrl}{name}", filePath);
+            return true;
         }
 
         private static void Copy(string origin, string path)
@@ -105,14 +111,15 @@ namespace RemoteDesktopViewer
             
             ServerPort.IsEnabled = !(button.IsChecked ?? false);
             
-            if (!(button.IsChecked ?? false))
-            {
-                button.Content = "Server Closed";
-                RemoteServer.Instance?.Close();
-                return;
-            }
-            
-            button.Content = "Server Opened";
+            if(!(button.IsChecked ?? false))
+                Off();
+            else
+                On();
+        }
+
+        private void On()
+        {
+            ServerOnOff.Content = "Server Opened";
             
             if (string.IsNullOrEmpty(ServerPort.Text))
                 ServerPort.Text = DefaultPort.ToString();
@@ -120,17 +127,25 @@ namespace RemoteDesktopViewer
             try
             {
                 new RemoteServer(int.Parse(ServerPort.Text), ServerPassword.Password).UpdateServerControl(ServerControl.IsChecked ?? false);
+                ClipboardHelper.Create(this);
             }
             catch (SocketException err)
             {
                 MessageBox.Show(err.SocketErrorCode == SocketError.AddressAlreadyInUse ? NetworkAlreadyBind : Error);
-                button.IsChecked = false;
+                ServerOnOff.IsChecked = false;
             }
             catch (Exception)
             {
                 MessageBox.Show(Error);
-                button.IsChecked = false;
+                ServerOnOff.IsChecked = false;
             }
+        }
+
+        private void Off()
+        {
+            ServerOnOff.Content = "Server Closed";
+            ClipboardHelper.Close();
+            RemoteServer.Instance?.Close();
         }
 
         private void ServerControl_OnCheckedChanged(object sender, RoutedEventArgs e)

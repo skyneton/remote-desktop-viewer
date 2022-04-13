@@ -35,6 +35,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
@@ -45,10 +46,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ByteBuf.cs" />
-    <Compile Include="Compress\ByteHelper.cs" />
+    <Compile Include="Clipboard\ClipboardManager.cs" />
+    <Compile Include="Byte\ByteHelper.cs" />
     <Compile Include="CryptoHelper.cs" />
     <Compile Include="DoubleKey.cs" />
     <Compile Include="FileHelper.cs" />
+    <Compile Include="Image\Image233.cs" />
+    <Compile Include="Image\Image565.cs" />
+    <Compile Include="Image\ImagePalette.cs" />
     <Compile Include="Image\ImageProcess.cs" />
     <Compile Include="Image\Palette.cs" />
     <Compile Include="LowHelper.cs" />

@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using RemoteDesktopViewer.Networks.Packet;
 using RemoteDesktopViewer.Networks.Packet.Data;
 using RemoteDesktopViewer.Utils;
-using RemoteDesktopViewer.Utils.Compress;
+using RemoteDesktopViewer.Utils.Byte;
 
 namespace RemoteDesktopViewer.Networks
 {
