@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using RemoteDesktopViewer.Networks.Threading;
+using RemoteDesktopViewer.Utils;
+using RemoteDesktopViewer.Utils.Byte;
 using RemoteDesktopViewer.Utils.Clipboard;
 
 namespace RemoteDesktopViewer
@@ -12,10 +14,12 @@ namespace RemoteDesktopViewer
     public class ClipboardHelper
     {
         private ClipboardManager _clipboardManager;
-        private object _beforeClipboardData;
+        private IDataObject _beforeClipboardData;
 
         private bool _updateClipboard;
         private Visual _visual;
+        
+        private readonly Dictionary<string, ByteBuf> _clipReceived = new();
 
         public void Create(Visual window)
         {
@@ -38,10 +42,10 @@ namespace RemoteDesktopViewer
             try
             {
                 var obj = Clipboard.GetDataObject();
-                var current = GetDataFromIData(obj);
-                if (!current.HasValue || current.Value.Value.Equals(_beforeClipboardData)) return;
+                // var current = GetDataFromIData(obj);
+                if (obj == null || obj.Equals(_beforeClipboardData)) return;
 
-                _beforeClipboardData = current.Value.Value;
+                _beforeClipboardData = obj;
 
                 if (_updateClipboard)
                 {
@@ -49,7 +53,7 @@ namespace RemoteDesktopViewer
                     return;
                 }
 
-                ClipboardThreadManager.Worker(RemoteServer.Instance.Broadcast, current.Value.Key, _beforeClipboardData);
+                Task.Run(() => ClipboardThreadManager.Worker(RemoteServer.Instance.Broadcast, _beforeClipboardData));
             }
             catch (Exception e)
             {
@@ -57,23 +61,62 @@ namespace RemoteDesktopViewer
             }
         }
 
-        private static KeyValuePair<string, object>? GetDataFromIData(IDataObject dataObject)
+        public void ClipboardChunkReceived(string id, byte type, IEnumerable<byte> data)
         {
-            if (dataObject == null) return null;
+            switch (type)
+            {
+                case 0:
+                    if (!_clipReceived.TryGetValue(id, out var buf))
+                    {
+                        buf = new ByteBuf();
+                        _clipReceived.Add(id, buf);
+                    }
+                    
+                    buf.Write(data);
+                    break;
+                case 1:
+                    if (!_clipReceived.TryGetValue(id, out buf))
+                        return;
+                    _clipReceived.Remove(id);
+
+                    ClipboardChunkFinished(buf);
+                    break;
+            }
+        }
+
+        private void ClipboardChunkFinished(ByteBuf buf)
+        {
+            buf = new ByteBuf(ByteHelper.Decompress(buf.GetBytes()));
+            var isFile = buf.ReadBool();
+            if (isFile)
+                ClipboardRecvFile(buf);
+            else
+                ClipboardRecv(buf);
+        }
+
+        private void ClipboardRecvFile(ByteBuf buf)
+        {
             
-            if (dataObject.GetDataPresent("Bitmap"))
-                return new ("Bitmap", dataObject.GetData("Bitmap"));
-            // if (dataObject.GetDataPresent("FileNameW"))
-            //     return new ClipboardTypeFile(dataObject.GetData("FileNameW") as string[]);
-            
-            return new (dataObject.GetFormats()[0], dataObject.GetData(dataObject.GetFormats()[0]));
+        }
+
+        private void ClipboardRecv(ByteBuf buf)
+        {
+            var dataObject = new DataObject();
+            while (buf.Length > 0)
+            {
+                var format = buf.ReadString();
+                var data = ClipboardThreadManager.GetData(format, buf.Read(buf.ReadVarInt()));
+                dataObject.SetData(format, data);
+            }
+
+            SetClipboard(dataObject);
         }
 
         [STAThread]
-        public void SetClipboard(string format, object obj)
+        public void SetClipboard(DataObject obj)
         {
             _updateClipboard = true;
-            _visual.Dispatcher.Invoke(() => Clipboard.SetData(format, obj));
+            _visual.Dispatcher.Invoke(() => Clipboard.SetDataObject(obj));
         }
     }
 }

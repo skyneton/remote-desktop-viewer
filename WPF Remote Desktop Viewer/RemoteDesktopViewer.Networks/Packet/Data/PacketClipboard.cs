@@ -4,30 +4,32 @@ namespace RemoteDesktopViewer.Networks.Packet.Data
 {
     public class PacketClipboard : IPacket
     {
-        public string Format { get; private set; }
-        public byte DataType { get; private set; }
+        public string Id { get; private set; }
+        public byte Type { get; private set; }
         public byte[] Data { get; private set; }
         public PacketClipboard() { }
 
-        public PacketClipboard(string format, byte dataType, byte[] data)
+        public PacketClipboard(string id, byte type, byte[] data)
         {
-            Format = format;
-            DataType = dataType;
+            Id = id;
+            Type = type;
             Data = data;
         }
         public void Write(ByteBuf buf)
         {
             buf.WriteVarInt((int) PacketType.ClipboardEvent);
-            buf.WriteString(Format);
-            buf.WriteByte(DataType);
-            buf.Write(Data);
+            buf.WriteString(Id);
+            buf.WriteByte(Type);
+            if(Data != null)
+                buf.Write(Data);
         }
 
         public void Read(ByteBuf buf)
         {
-            Format = buf.ReadString();
-            DataType = (byte) buf.ReadByte();
-            Data = buf.Read(buf.Length);
+            Id = buf.ReadString();
+            Type = (byte) buf.ReadByte();
+            if(buf.Length > 0)
+                Data = buf.Read(buf.Length);
         }
     }
 }

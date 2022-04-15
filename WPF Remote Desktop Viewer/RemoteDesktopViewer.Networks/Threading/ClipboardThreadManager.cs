@@ -2,48 +2,158 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using RemoteDesktopViewer.Networks.Packet;
 using RemoteDesktopViewer.Networks.Packet.Data;
+using RemoteDesktopViewer.Utils;
 using RemoteDesktopViewer.Utils.Byte;
-using RemoteDesktopViewer.Utils.Clipboard;
 using RemoteDesktopViewer.Utils.Image;
 
 namespace RemoteDesktopViewer.Networks.Threading
 {
-    public class ClipboardThreadManager
+    public static class ClipboardThreadManager
     {
+        private const int FileChunk = 9000;
+        private const int ThreadDelay = 8;
+        
         private static string _beforeString; 
-        public static void Worker(NetworkManager manager, string format, object data)
+        public static void Worker(NetworkManager manager, IDataObject data)
         {
-            var result = GetData(data);
-            if (!result.HasValue) return;
-            var v = result.Value;
-            var md5 = ToMd5(v.Value);
-            if(!md5.Equals(_beforeString))
-                manager.SendPacket(new PacketClipboard(format, v.Key, v.Value));
-            _beforeString = md5;
+            try
+            {
+                var bytes = GetDataFromDataObject(data);
+                if (bytes == null) return;
+                bytes = ByteHelper.Compress(bytes);
+                var id = Guid.NewGuid().ToString();
+                
+                var currentIndex = 0;
+                
+                while (manager.Connected)
+                {
+                    if (currentIndex >= bytes.Length)
+                    {
+                        manager.SendPacket(new PacketClipboard(id, 1, null));
+                        break;
+                    }
+                    manager.SendPacket(new PacketClipboard(id, 0, ChunkSplit(ref currentIndex, bytes)));
+                    Thread.Sleep(ThreadDelay);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e);
+            }
         }
-        public static void Worker(Action<IPacket, bool> action, string format, object data)
+        public static void Worker(Action<IPacket, bool> action, IDataObject data)
         {
-            var result = GetData(data);
-            if (!result.HasValue) return;
-            var v = result.Value;
-            var md5 = ToMd5(v.Value);
-            if(!md5.Equals(_beforeString))
-                action.Invoke(new PacketClipboard(format, v.Key, v.Value), true);
-            _beforeString = md5;
+            try
+            {
+                var bytes = GetDataFromDataObject(data);
+                if (bytes == null) return;
+                bytes = ByteHelper.Compress(bytes);
+                var id = Guid.NewGuid().ToString();
+                
+                var currentIndex = 0;
+                
+                while (true)
+                {
+                    if (currentIndex >= bytes.Length)
+                    {
+                        action.Invoke(new PacketClipboard(id, 1, null), true);
+                        break;
+                    }
+                    action.Invoke(new PacketClipboard(id, 0, ChunkSplit(ref currentIndex, bytes)), true);
+                    Thread.Sleep(ThreadDelay);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e);
+            }
         }
 
-        public static KeyValuePair<byte, byte[]>? GetData(object data)
+        private static byte[] ChunkSplit(ref int currentIndex, byte[] bytes)
+        {
+            var end = currentIndex + FileChunk;
+            if (end > bytes.Length)
+                end = bytes.Length;
+
+            var length = end - currentIndex;
+            var buffer = new byte[length];
+            Array.Copy(bytes, currentIndex, buffer, 0, length);
+            currentIndex += length;
+
+            return buffer;
+        }
+
+        private static byte[] GetDataFromDataObject(IDataObject dataObject)
+        {
+            var buf = new ByteBuf();
+            if (dataObject.GetFormats().Contains("FileNameW"))
+            {
+                buf.WriteBool(true);
+                return !GetDataFromFile(buf, (string[]) dataObject.GetData("FileNameW"))
+                    ? null
+                    : buf.GetBytes();
+            }
+            
+            buf.WriteBool(false);
+
+            var isFirst = true;
+            foreach (var format in dataObject.GetFormats())
+            {
+                if (!dataObject.GetDataPresent(format)) continue;
+                try
+                {
+                    var data = GetData(format, dataObject.GetData(format));
+                    if (data == null) continue;
+                    buf.WriteString(format);
+                    buf.WriteVarInt(data.Length);
+                    buf.Write(data);
+                    if (isFirst)
+                    {
+                        isFirst = false;
+                        if (CheckBeforeMd5(data)) return null;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                }
+            }
+
+            return buf.GetBytes();
+        }
+
+        private static bool GetDataFromFile(ByteBuf buf, IReadOnlyList<string> files)
+        {
+            for (var i = 0; i < files.Count; i++)
+            {
+                var path = files[i];
+                
+                buf.WriteBool(Directory.Exists(path));
+                buf.WriteString(Path.GetFileName(path));
+                var bytes = FileHelper.GetData(path);
+                buf.WriteVarInt(bytes.Length);
+                buf.Write(bytes);
+                if (i == 0 && CheckBeforeMd5(bytes))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static byte[] GetData(string format, object data)
         {
             if (data.GetType().IsSerializable)
-                return new KeyValuePair<byte, byte[]>(0, ByteHelper.Object2ByteArray(data));
+                return ByteHelper.Object2ByteArray(data);
 
-            if (data is ClipboardTypeFile typeFile) return new KeyValuePair<byte, byte[]>(0, GetDataFromFile(typeFile));
-            if (data is not InteropBitmap bitmap) return null;
+            if (data is not InteropBitmap bitmap || !format.Equals("Bitmap")) return null;
             
             var encoder = new JpegBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -51,29 +161,25 @@ namespace RemoteDesktopViewer.Networks.Threading
             using var ms = new MemoryStream();
             encoder.Save(ms);
             
-            return new KeyValuePair<byte, byte[]>(1, ms.ToArray());
+            return ms.ToArray();
         }
 
-        private static byte[] GetDataFromFile(ClipboardTypeFile file)
+        private static bool CheckBeforeMd5(byte[] data)
         {
-            var length = file.Name.Length;
-            var result = new FileStream[length];
-            for (var i = 0; i < length; i++)
-            {
-                using var fs = new FileStream(file.Name[i], FileMode.Open, FileAccess.Read);
-                result[i] = fs;
-            }
+            var md5 = ToMd5(data);
+            var result = md5.Equals(_beforeString);
 
-            return ByteHelper.Object2ByteArray(result);
+            _beforeString = md5;
+            
+            return result;
         }
 
-        public static object GetData(byte type, byte[] data)
+        public static object GetData(string format, byte[] data)
         {
-            return type switch
+            return format switch
             {
-                0 => ByteHelper.ByteArray2Object(data),
-                1 => ImageProcess.ToBitmap(data),
-                _ => null
+                "Bitmap" => ImageProcess.ToBitmap(data),
+                _ => ByteHelper.ByteArray2Object(data)
             };
         }
 

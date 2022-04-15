@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using RemoteDesktopViewer.Utils.Byte;
 
 namespace RemoteDesktopViewer.Utils
 {
@@ -46,5 +47,9 @@ namespace RemoteDesktopViewer.Utils
 
             return result;
         }
+
+        public static byte[] GetData(string path) => Directory.Exists(path)
+            ? ByteHelper.DirectoryCompress(path)
+            : ByteHelper.Compress(File.ReadAllBytes(path));
     }
 }

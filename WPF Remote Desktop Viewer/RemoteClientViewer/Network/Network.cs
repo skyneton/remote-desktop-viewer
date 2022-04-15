@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Net.Sockets;
 using System.Windows;
 using RemoteDesktopViewer.Networks;
 using RemoteDesktopViewer.Networks.Packet;
 using RemoteDesktopViewer.Networks.Packet.Data;
-using RemoteDesktopViewer.Networks.Threading;
 using RemoteDesktopViewer.Utils;
 
 namespace RemoteClientViewer.Network
@@ -49,7 +47,7 @@ namespace RemoteClientViewer.Network
                     MainWindow.Instance.Invoke(() => LowHelper.SetCursor(packet.Cursor));
                     break;
                 case PacketClipboard packet:
-                    MainWindow.Instance.ClipboardHelper.SetClipboard(packet.Format, ClipboardThreadManager.GetData(packet.DataType, packet.Data));
+                    MainWindow.Instance.ClipboardHelper.ClipboardChunkReceived(packet.Id, packet.Type, packet.Data);
                     break;
             }
         }

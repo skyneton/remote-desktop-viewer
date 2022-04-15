@@ -9,7 +9,7 @@ namespace RemoteDesktopViewer
 {
     public class FileReceiveHelper
     {
-        private Dictionary<int, ByteBuf> _fileReceived = new();
+        private readonly Dictionary<int, ByteBuf> _fileReceived = new();
         
 
         internal void FileChunkCreate(int id, string name, bool isDirectory)
@@ -36,10 +36,7 @@ namespace RemoteDesktopViewer
             var buf = new ByteBuf(stream.GetBytes());
             var name = buf.ReadString();
             var isDirectory = buf.ReadBool();
-            Debug.WriteLine("Compress");
-            Debug.WriteLine(isDirectory);
             var path = FileHelper.GetDesktopFilePath(name);
-            Debug.WriteLine(path);
             try
             {
                 if (isDirectory)

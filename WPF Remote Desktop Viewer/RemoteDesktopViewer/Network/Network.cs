@@ -47,7 +47,7 @@ namespace RemoteDesktopViewer.Network
                     _helper.FileChunkFinished(packet.Id);
                     break;
                 case PacketClipboard packet:
-                    MainWindow.Instance.ClipboardHelper.SetClipboard(packet.Format, ClipboardThreadManager.GetData(packet.DataType, packet.Data));
+                    MainWindow.Instance.ClipboardHelper.ClipboardChunkReceived(packet.Id, packet.Type, packet.Data);
                     break;
             }
         }

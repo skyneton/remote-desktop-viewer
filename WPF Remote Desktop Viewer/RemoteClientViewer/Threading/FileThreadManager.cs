@@ -5,7 +5,7 @@ using System.Threading;
 using System.Windows;
 using RemoteDesktopViewer.Networks;
 using RemoteDesktopViewer.Networks.Packet.Data;
-using RemoteDesktopViewer.Utils.Byte;
+using RemoteDesktopViewer.Utils;
 
 namespace RemoteClientViewer.Threading
 {
@@ -17,11 +17,10 @@ namespace RemoteClientViewer.Threading
         public static void Worker(NetworkManager manager, string path)
         {
             var id = _fileUploadId++;
-            var isDirectory = Directory.Exists(path);
-            var bytes = isDirectory ? ByteHelper.DirectoryCompress(path) : ByteHelper.Compress(File.ReadAllBytes(path));
+            var bytes = FileHelper.GetData(path);
             var name = Path.GetFileName(path);
             
-            manager.SendPacket(new PacketFileName(id, name, isDirectory));
+            manager.SendPacket(new PacketFileName(id, name, Directory.Exists(path)));
 
             var currentIndex = 0;
             
