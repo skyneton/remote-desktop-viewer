@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using RemoteDesktopViewer.Networks.Threading;
@@ -35,19 +37,17 @@ namespace RemoteClientViewer
             try
             {
                 var obj = Clipboard.GetDataObject();
-                Debug.WriteLine(obj?.GetFormats()[0]);
-                var current = obj?.GetData(obj.GetFormats()[0]);
-                if (current == null || current.Equals(_beforeClipboardData)) return;
+                var current = GetDataFromIData(obj);
+                if (!current.HasValue || current.Value.Value.Equals(_beforeClipboardData)) return;
 
-                _beforeClipboardData = current;
+                _beforeClipboardData = current.Value.Value;
 
                 if (_updateClipboard)
                 {
                     _updateClipboard = false;
                     return;
                 }
-
-                ClipboardThreadManager.Worker(MainWindow.Instance.Client.Network, current);
+                ClipboardThreadManager.Worker(MainWindow.Instance.Client.Network, current.Value.Key, _beforeClipboardData);
             }
             catch (Exception e)
             {
@@ -55,11 +55,23 @@ namespace RemoteClientViewer
             }
         }
 
+        private static KeyValuePair<string, object>? GetDataFromIData(IDataObject dataObject)
+        {
+            if (dataObject == null) return null;
+            
+            if (dataObject.GetDataPresent("Bitmap"))
+                return new ("Bitmap", dataObject.GetData("Bitmap"));
+            // if (dataObject.GetDataPresent("FileNameW"))
+            //     return new ClipboardTypeFile(dataObject.GetData("FileNameW") as string[]);
+            
+            return new (dataObject.GetFormats()[0], dataObject.GetData(dataObject.GetFormats()[0]));
+        }
+
         [STAThread]
-        public void SetClipboard(object obj)
+        public void SetClipboard(string format, object obj)
         {
             _updateClipboard = true;
-            _visual.Dispatcher.Invoke(() => Clipboard.SetDataObject(obj));
+            _visual.Dispatcher.Invoke(() => Clipboard.SetData(format, obj));
         }
     }
 }

@@ -48,6 +48,7 @@
     <Compile Include="ByteBuf.cs" />
     <Compile Include="Clipboard\ClipboardManager.cs" />
     <Compile Include="Byte\ByteHelper.cs" />
+    <Compile Include="Clipboard\ClipboardTypeHelper.cs" />
     <Compile Include="CryptoHelper.cs" />
     <Compile Include="DoubleKey.cs" />
     <Compile Include="FileHelper.cs" />

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
@@ -67,7 +68,8 @@ namespace RemoteClientViewer
 
         private static void GetAddress(out string ip, out int port, out string password)
         {
-            var ipArgs = "127.0.0.1";
+            var ipArgs = "192.168.200.116";
+            // var ipArgs = "127.0.0.1";
             var portArgs = 33062;
             var passwordArgs = string.Empty;
             
@@ -172,6 +174,7 @@ namespace RemoteClientViewer
         private void CursorShow()
         {
             if (CursorValue == -1) return;
+            LowHelper.SetCursor(CursorValue);
             Dispatcher.Invoke(() => LowHelper.SetCursor(CursorValue));
         }
 

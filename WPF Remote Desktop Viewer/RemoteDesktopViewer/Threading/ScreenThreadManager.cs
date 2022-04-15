@@ -14,7 +14,7 @@ namespace RemoteDesktopViewer.Threading
     public static class ScreenThreadManager
     {
         private const int ThreadEmptyDelay = 500;
-        private const int ThreadDelay = 15;
+        private const int ThreadDelay = 10;
         private static readonly ConcurrentQueue<NetworkManager> FullScreenNetworks = new();
         private static DoubleKey<int, int> _beforeSize;
         public static DoubleKey<int, int> CurrentSize { get; private set; } = GetScreenSize();
