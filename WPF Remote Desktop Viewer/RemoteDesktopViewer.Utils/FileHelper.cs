@@ -8,24 +8,12 @@ namespace RemoteDesktopViewer.Utils
     {
         public static string GetDesktopFilePath(string name)
         {
-            // var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            // if (!File.Exists(Path.Combine(desktop, name)))
-            //     return Path.Combine(desktop, name);
-            //
-            // var withOutExtension = Path.GetFileNameWithoutExtension(name);
-            // var extension = Path.GetExtension(name);
-            // var i = 0;
-            //
-            // var path = Path.Combine(desktop, $"{withOutExtension} ({i}){extension}");
-            //
-            // while (File.Exists(path))
-            // {
-            //     i++;
-            //     path = Path.Combine(desktop, $"{withOutExtension} ({i}){extension}");
-            // }
-
-            // return path;
             return GetFileName(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), name);
+        }
+
+        public static string GetTempFilePath(string name)
+        {
+            return GetFileName(Path.GetTempPath(), name);
         }
 
         public static string GetFileName(string path, string name)

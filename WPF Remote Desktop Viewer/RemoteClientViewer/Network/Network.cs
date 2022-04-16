@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using System.Windows;
 using RemoteDesktopViewer.Networks;
 using RemoteDesktopViewer.Networks.Packet;
@@ -25,7 +26,12 @@ namespace RemoteClientViewer.Network
             MainWindow.Instance.Invoke(() => MessageBox.Show(e.Message));
         }
 
-        protected override void PacketHandle(IPacket data)
+        protected override void PacketHandle(IPacket packet)
+        {
+            Task.Run(() => Handle(packet));
+        }
+
+        private void Handle(IPacket data)
         {
             switch (data)
             {

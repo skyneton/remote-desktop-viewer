@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Documents;
 using System.Windows.Media;
 using RemoteDesktopViewer.Networks.Threading;
 using RemoteDesktopViewer.Utils;
@@ -37,26 +39,30 @@ namespace RemoteClientViewer
 
         private void ClipboardCallback()
         {
-            if (!MainWindow.Instance.ServerControl) return;
-            try
+            var obj = Clipboard.GetDataObject();
+            Task.Run(() =>
             {
-                var obj = Clipboard.GetDataObject();
-                // var current = GetDataFromIData(obj);
-                if (obj == null || obj.Equals(_beforeClipboardData)) return;
-
-                _beforeClipboardData = obj;
-
-                if (_updateClipboard)
+                if (!MainWindow.Instance.ServerControl) return;
+                try
                 {
-                    _updateClipboard = false;
-                    return;
+                    // var current = GetDataFromIData(obj);
+                    if (obj == null || obj.Equals(_beforeClipboardData)) return;
+
+                    _beforeClipboardData = obj;
+
+                    if (_updateClipboard)
+                    {
+                        _updateClipboard = false;
+                        return;
+                    }
+
+                    ClipboardThreadManager.Worker(MainWindow.Instance.Client.Network, _beforeClipboardData);
                 }
-                Task.Run(() => ClipboardThreadManager.Worker(MainWindow.Instance.Client.Network, _beforeClipboardData));
-            }
-            catch (Exception e)
-            {
-                Debug.WriteLine(e);
-            }
+                catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                }
+            });
         }
 
         public void ClipboardChunkReceived(string id, byte type, IEnumerable<byte> data)
@@ -94,13 +100,37 @@ namespace RemoteClientViewer
 
         private void ClipboardRecvFile(ByteBuf buf)
         {
+            var paths = new List<string>();
             while (buf.Length > 0)
             {
                 var isDir = buf.ReadBool();
                 var name = buf.ReadString();
                 var data = buf.Read(buf.ReadVarInt());
-                
+
+                try
+                {
+                    var path = FileHelper.GetTempFilePath(name);
+                    if (isDir)
+                    {
+                        ByteHelper.DirectoryDecompress(path, data);
+                    }
+                    else
+                    {
+                        data = ByteHelper.Decompress(data);
+                        File.WriteAllBytes(path, data);
+                    }
+
+                    paths.Add(path);
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                }
             }
+
+            var result = new DataObject();
+            result.SetData("FileNameW", paths.ToArray());
+            SetClipboard(result);
         }
 
         private void ClipboardRecv(ByteBuf buf)

@@ -37,28 +37,31 @@ namespace RemoteDesktopViewer
 
         private void ClipboardCallback()
         {
-            if (!RemoteServer.Instance.ServerControl) return;
-
-            try
+            var obj = Clipboard.GetDataObject();
+            Task.Run(() =>
             {
-                var obj = Clipboard.GetDataObject();
-                // var current = GetDataFromIData(obj);
-                if (obj == null || obj.Equals(_beforeClipboardData)) return;
+                if (!RemoteServer.Instance.ServerControl) return;
 
-                _beforeClipboardData = obj;
-
-                if (_updateClipboard)
+                try
                 {
-                    _updateClipboard = false;
-                    return;
-                }
+                    // var current = GetDataFromIData(obj);
+                    if (obj == null || obj.Equals(_beforeClipboardData)) return;
 
-                Task.Run(() => ClipboardThreadManager.Worker(RemoteServer.Instance.Broadcast, _beforeClipboardData));
-            }
-            catch (Exception e)
-            {
-                Debug.WriteLine(e);
-            }
+                    _beforeClipboardData = obj;
+
+                    if (_updateClipboard)
+                    {
+                        _updateClipboard = false;
+                        return;
+                    }
+
+                    ClipboardThreadManager.Worker(RemoteServer.Instance.Broadcast, _beforeClipboardData);
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                }
+            });
         }
 
         public void ClipboardChunkReceived(string id, byte type, IEnumerable<byte> data)
