@@ -7,6 +7,7 @@ using System.Threading;
 using RemoteDesktopViewer.Networks;
 using RemoteDesktopViewer.Networks.Packet.Data;
 using RemoteDesktopViewer.Utils;
+using RemoteDesktopViewer.Utils.Byte;
 using RemoteDesktopViewer.Utils.Image;
 
 namespace RemoteDesktopViewer.Threading
@@ -22,11 +23,11 @@ namespace RemoteDesktopViewer.Threading
         private static bool SizeUpdated => _beforeSize != CurrentSize;
 
         private static Bitmap _beforeFrame;
-        private static byte[] _beforeImageData;
+        private static object _beforeImageData;
         private static byte[] _changedData;
 
-        // private const PixelFormat Format = PixelFormat.Format24bppRgb;
-        private const PixelFormat Format = PixelFormat.Format16bppRgb565;
+        private const PixelFormat Format = PixelFormat.Format24bppRgb;
+        // private const PixelFormat Format = PixelFormat.Format16bppRgb565;
 
         internal static void Worker()
         {
@@ -40,7 +41,10 @@ namespace RemoteDesktopViewer.Threading
                         continue;
                     }
 
+                    var bef = TimeManager.CurrentTimeMillis;
+
                     TakeDesktop();
+                    Debug.WriteLine($"{TimeManager.CurrentTimeMillis - bef}ms");
 
                     /*var jpeg = ImageProcess.ToJpegImage(_beforeFrame);
                     var def = ByteHelper.Compress(_beforeImageData);
@@ -89,18 +93,18 @@ namespace RemoteDesktopViewer.Threading
         {
             if (_changedData == null || _changedData.Length == 0) return;
             if (_changedData.Length > compressedImage.Length * .89)
-            // if ((_changedData.Length >> 2) * .84 > compressedImage.Length * .96)
+            // if (_changedData.Length >> 2 > compressedImage.Length * .96)
             {
                 // if(ByteHelper.Compress(_changedData).Length < ByteHelper.Compress(compressedImage).Length)
-                //     Debug.WriteLine($"{_changedData.Length} {ByteHelper.Compress(_changedData).Length} {compressedImage.Length} {ByteHelper.Compress(compressedImage).Length}");
+                //     Debug.WriteLine($"C {_changedData.Length} {ByteHelper.Compress(_changedData).Length} {compressedImage.Length} {ByteHelper.Compress(compressedImage).Length}");
                 //Debug.WriteLine($"{_changedData.Length} {_beforeImageData.Length} {ByteHelper.Compress(_changedData).Length}-> {ByteHelper.Compress(compressedImage).Length} {compressedImage.Length}");
                 RemoteServer.Instance?.Broadcast(new PacketScreen(CurrentSize.X, CurrentSize.Y, (byte)PixelFormatHelper.ToId(Format), compressedImage));
                 // Debug.WriteLine($"Changed: {_changedData.Length}");
             }
             else
             {
-                // if(ByteHelper.Compress(_changedData).Length > ByteHelper.Compress(compressedImage).Length)
-                //     Debug.WriteLine($"{_changedData.Length} {ByteHelper.Compress(_changedData).Length} {compressedImage.Length} {ByteHelper.Compress(compressedImage).Length}");
+                if(ByteHelper.Compress(_changedData).Length > ByteHelper.Compress(compressedImage).Length)
+                    Debug.WriteLine($"A {_changedData.Length} {ByteHelper.Compress(_changedData).Length} {compressedImage.Length} {ByteHelper.Compress(compressedImage).Length}");
                 RemoteServer.Instance?.Broadcast(new PacketScreenChunk(_changedData));
             }
         }

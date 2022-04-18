@@ -8,9 +8,9 @@ using RemoteDesktopViewer.Utils.Byte;
 
 namespace RemoteDesktopViewer.Utils.Image
 {
-    public static class Image565
+    public static class Image565N
     {
-        public static byte[] Compress(Bitmap image, ref byte[] beforeCompressed, PixelFormat format)
+        public static byte[] Compress(Bitmap image, ref ushort[] beforeCompressed, PixelFormat format)
         {
             using var changedPixelsStream = new MemoryStream();
             using var info = new MemoryStream();
@@ -20,7 +20,7 @@ namespace RemoteDesktopViewer.Utils.Image
             var height = bitmapData.Height;
             var width = bitmapData.Width;
             var pixelsPer = System.Drawing.Image.GetPixelFormatSize(bitmapData.PixelFormat) >> 3;
-            var pixels = new byte[height * width << 1];
+            var pixels = new ushort[height * width];
             var offset = bitmapData.Stride - width * pixelsPer;
 
             unsafe
@@ -41,16 +41,18 @@ namespace RemoteDesktopViewer.Utils.Image
 
                         // pixels[pos++] = (byte) (b >> 3 << 3 | g >> 5);
                         // pixels[pos++] = (byte) ((g & 0x7) << 5 | r >> 3);
-                        pixels[pos++] = *point++;
-                        pixels[pos++] = *point++;
+                        var b = *point++;
+                        var g = *point++;
+                        var r = *point++;
+                        pixels[pos++] = (ushort) (b >> 3 << 11 | g >> 2 << 5 | r >> 3);
                         
-                        var check = pos - 2;
-                        changed = pixels[check] != beforeCompressed[check] || pixels[check + 1] != beforeCompressed[check + 1];
+                        var check = pos - 1;
+                        changed = pixels[check] != beforeCompressed[check];
 
                         if (changed)
                         {
-                            changedPixelsStream.WriteByte(pixels[check]);
-                            changedPixelsStream.WriteByte(pixels[check + 1]);
+                            changedPixelsStream.WriteByte((byte) (pixels[check] >> 8));
+                            changedPixelsStream.WriteByte((byte) pixels[check]);
                         }
                         if (before == changed) continue;
                         if (!before)
@@ -68,10 +70,9 @@ namespace RemoteDesktopViewer.Utils.Image
 
                 if (changed)
                 {
-                    var count = pos - startChanged - 2;
+                    var count = pos - startChanged - 1;
                     Write(info, ByteBuf.GetVarInt(startChanged));
                     Write(info, ByteBuf.GetVarInt(count));
-                    changedPixelsStream.Write(pixels, startChanged, count);
                 }
             }
             
@@ -100,12 +101,12 @@ namespace RemoteDesktopViewer.Utils.Image
             Write(ms, ByteBuf.GetVarInt(length));
             ms.Write(changedPixels, 0, length);
             
-            // Write(ms, ByteHelper.Compress(info.ToArray()));
-            Write(ms, info.ToArray());
+            Write(ms, ByteHelper.Compress(info.ToArray()));
+            // Write(ms, info.ToArray());
             return ms.ToArray();
         }
         
-        public static byte[] Compress(Bitmap image, PixelFormat format)
+        public static ushort[] Compress(Bitmap image, PixelFormat format)
         {
             var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly,
                 format);
@@ -113,7 +114,7 @@ namespace RemoteDesktopViewer.Utils.Image
             var height = bitmapData.Height;
             var width = bitmapData.Width;
             var pixelsPer = System.Drawing.Image.GetPixelFormatSize(bitmapData.PixelFormat) >> 3;
-            var pixels = new byte[height * width << 1];
+            var pixels = new ushort[height * width];
             var offset = bitmapData.Stride - width * pixelsPer;
             unsafe
             {
@@ -123,14 +124,10 @@ namespace RemoteDesktopViewer.Utils.Image
                 {
                     for (var x = 0; x < width; x++)
                     {
-                        // var b = *point++;
-                        // var g = *point++;
-                        // var r = *point++;
-                        //
-                        // pixels[pos++] = (byte) (b >> 3 << 3 | g >> 5);
-                        // pixels[pos++] = (byte) ((g & 0x7) << 5 | r >> 3);
-                        pixels[pos++] = *point++;
-                        pixels[pos++] = *point++;
+                        var b = *point++;
+                        var g = *point++;
+                        var r = *point++;
+                        pixels[pos++] = (ushort) (b >> 3 << 11 | g >> 2 << 5 | r >> 3);
                     }
 
                     point += offset;
@@ -147,8 +144,8 @@ namespace RemoteDesktopViewer.Utils.Image
                 ? ByteHelper.Decompress(chunk.Read(chunk.ReadVarInt()))
                 : chunk.Read(chunk.ReadVarInt());
 
-            chunk = new ByteBuf(chunk.Read(chunk.Length));
-            // chunk = new ByteBuf(ByteHelper.Decompress(chunk.Read(chunk.Length)));
+            // chunk = new ByteBuf(chunk.Read(chunk.Length));
+            chunk = new ByteBuf(ByteHelper.Decompress(chunk.Read(chunk.Length)));
             
             bitmap.Lock();
             unsafe
@@ -157,12 +154,15 @@ namespace RemoteDesktopViewer.Utils.Image
                 var backBuffer = (byte*) bitmap.BackBuffer;
                 while (chunk.Length > 0)
                 {
-                    var pos = chunk.ReadVarInt();
+                    var pos = chunk.ReadVarInt() * 3;
                     var length = chunk.ReadVarInt();
                     // Debug.WriteLine($"Changed: {pixels.Length} pixelPos: {pixelPos} Length: {length} pos: {pos}");
                     for (var i = 0; i < length; i++)
                     {
-                        *(backBuffer + pos++) = pixels[pixelPos++];
+                        var bgr = (ushort) (pixels[pixelPos++] << 8 | pixels[pixelPos++]);
+                        *(backBuffer + pos++) = (byte) (bgr >> 11 << 3);
+                        *(backBuffer + pos++) = (byte) (bgr >> 5 << 2);
+                        *(backBuffer + pos++) = (byte) (bgr << 3);
                     }
                 }
             }

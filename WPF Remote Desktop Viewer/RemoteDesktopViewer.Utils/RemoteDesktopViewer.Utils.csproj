@@ -52,7 +52,9 @@
     <Compile Include="DoubleKey.cs" />
     <Compile Include="FileHelper.cs" />
     <Compile Include="Image\Image233.cs" />
+    <Compile Include="Image\Image444.cs" />
     <Compile Include="Image\Image565.cs" />
+    <Compile Include="Image\Image565N.cs" />
     <Compile Include="Image\ImagePalette.cs" />
     <Compile Include="Image\ImageProcess.cs" />
     <Compile Include="Image\Palette.cs" />

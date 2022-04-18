@@ -68,8 +68,8 @@ namespace RemoteClientViewer
 
         private static void GetAddress(out string ip, out int port, out string password)
         {
-            var ipArgs = "192.168.200.116";
-            // var ipArgs = "127.0.0.1";
+            // var ipArgs = "192.168.200.116";
+            var ipArgs = "127.0.0.1";
             var portArgs = 33062;
             var passwordArgs = string.Empty;
             

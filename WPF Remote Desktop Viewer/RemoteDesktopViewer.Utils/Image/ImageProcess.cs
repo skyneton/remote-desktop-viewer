@@ -12,35 +12,62 @@ namespace RemoteDesktopViewer.Utils.Image
         /*
          * 0: 565       - PixelFormat = 16bpp
          * 1: 233       - PixelFormat = 24bpp
-         * 2: Palette   - PixelFormat = 16bpp
+         * 2: 444       - PixelFormat = 24bpp
+         * 3: Palette   - PixelFormat = 16bpp
          */
-        public const byte ProcessType = 1;
+        public const byte ProcessType = 0;
 
-        public static byte[] Compress(Bitmap bitmap, PixelFormat format) => ProcessType switch
+        public static object Compress(Bitmap bitmap, PixelFormat format) => ProcessType switch
         {
-            0 => Image565.Compress(bitmap, format),
+            0 => Image565N.Compress(bitmap, format),
             1 => Image233.Compress(bitmap, format),
-            2 => ImagePalette.Compress(bitmap, format)
+            2 => Image444.Compress(bitmap, format),
+            3 => ImagePalette.Compress(bitmap, format)
         };
         
-        public static byte[] Compress(Bitmap bitmap, ref byte[] before, PixelFormat format) => ProcessType switch
+        public static byte[] Compress(Bitmap bitmap, ref object before, PixelFormat format)
         {
-            0 => Image565.Compress(bitmap, ref before, format),
-            1 => Image233.Compress(bitmap, ref before, format),
-            2 => ImagePalette.Compress(bitmap, ref before, format)
-        };
+            byte[] result;
+            switch(ProcessType)
+            {
+                case 0:
+                    var a = (ushort[]) before;
+                    result = Image565N.Compress(bitmap, ref a, format);
+                    before = a;
+                    break;
+                case 1:
+                    var b = (byte[]) before;
+                    result = Image233.Compress(bitmap, ref b, format);
+                    before = b;
+                    break;
+                case 2:
+                    var c = (NibbleArray) before;
+                    result = Image444.Compress(bitmap, ref c, format);
+                    before = c;
+                    break;
+                case 3:
+                    var d = (byte[]) before;
+                    result = ImagePalette.Compress(bitmap, ref d, format);
+                    before = d;
+                    break;
+            };
+            return result;
+        }
 
         public static void DecompressChunk(WriteableBitmap bitmap, ByteBuf buf)
         {
             switch(ProcessType)
             {
                 case 0:
-                    bitmap.Dispatcher.Invoke(() => Image565.DecompressChunk(bitmap, buf));
+                    bitmap.Dispatcher.Invoke(() => Image565N.DecompressChunk(bitmap, buf));
                     break;
                 case 1:
                     bitmap.Dispatcher.Invoke(() => Image233.DecompressChunk(bitmap, buf));
                     break;
                 case 2:
+                    bitmap.Dispatcher.Invoke(() => Image444.DecompressChunk(bitmap, buf));
+                    break;
+                case 3:
                     ImagePalette.DecompressChunk(bitmap, buf);
                     break;
             };
@@ -108,8 +135,9 @@ namespace RemoteDesktopViewer.Utils.Image
             // var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
             // using var bitmap = new Bitmap(width, height, width, format, Marshal.UnsafeAddrOfPinnedArrayElement(data, 0));
             using var image = new Bitmap(width, height, format);
-            
-            var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly, format);
+
+            var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly,
+                format);
             // var pixelsPer = System.Drawing.Image.GetPixelFormatSize(bitmapData.PixelFormat) >> 3;
 
             // height = bitmapData.Height;
@@ -122,14 +150,15 @@ namespace RemoteDesktopViewer.Utils.Image
             }
 
             image.UnlockBits(bitmapData);
-            
+
             using var ms = new MemoryStream();
             image.Save(ms, ImageFormat.Gif);
             image.Dispose();
             // handle.Free();
             return ms.ToArray();
         }
-
+        
+        /*
         public static byte[] ToJpegImage(int width, int height, PixelFormat format, byte[] data, long quality = 30)
         {
             var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
@@ -139,6 +168,30 @@ namespace RemoteDesktopViewer.Utils.Image
             param.Param[0] = new EncoderParameter(Encoder.Quality, quality);
             bitmap.Save(ms, GetEncoder(ImageFormat.Jpeg), param);
             handle.Free();
+            return ms.ToArray();
+        }
+        */
+
+        public static byte[] ToJpegImage(int width, int height, PixelFormat format, byte[] data, long quality = 30)
+        {
+            using var image = new Bitmap(width, height, format);
+            
+            var bitmapData = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadOnly, format);
+
+            var point = bitmapData.Scan0;
+            for (var y = 0; y < height; y++)
+            {
+                Marshal.Copy(data, y * width, point, width);
+                point += bitmapData.Stride;
+            }
+
+            image.UnlockBits(bitmapData);
+            
+            using var ms = new MemoryStream();
+            var param = new EncoderParameters(1);
+            param.Param[0] = new EncoderParameter(Encoder.Quality, quality);
+            image.Save(ms, GetEncoder(ImageFormat.Jpeg), param);
+            image.Dispose();
             return ms.ToArray();
         }
 
