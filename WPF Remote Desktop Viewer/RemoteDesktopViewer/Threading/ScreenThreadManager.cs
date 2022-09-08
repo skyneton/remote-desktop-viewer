@@ -92,12 +92,14 @@ namespace RemoteDesktopViewer.Threading
         private static void ScreenChunk(byte[] compressedImage)
         {
             if (_changedData == null || _changedData.Length == 0) return;
-            if (_changedData.Length > compressedImage.Length * .89)
             // if (_changedData.Length >> 2 > compressedImage.Length * .96)
+            if (_changedData.Length > compressedImage.Length * .89)
             {
-                // if(ByteHelper.Compress(_changedData).Length < ByteHelper.Compress(compressedImage).Length)
-                //     Debug.WriteLine($"C {_changedData.Length} {ByteHelper.Compress(_changedData).Length} {compressedImage.Length} {ByteHelper.Compress(compressedImage).Length}");
-                //Debug.WriteLine($"{_changedData.Length} {_beforeImageData.Length} {ByteHelper.Compress(_changedData).Length}-> {ByteHelper.Compress(compressedImage).Length} {compressedImage.Length}");
+                #region legacy
+                /*if(ByteHelper.Compress(_changedData).Length < ByteHelper.Compress(compressedImage).Length)
+                     Debug.WriteLine($"C {_changedData.Length} {ByteHelper.Compress(_changedData).Length} {compressedImage.Length} {ByteHelper.Compress(compressedImage).Length}");
+                Debug.WriteLine($"{_changedData.Length} {_beforeImageData.Length} {ByteHelper.Compress(_changedData).Length}-> {ByteHelper.Compress(compressedImage).Length} {compressedImage.Length}");*/
+                #endregion
                 RemoteServer.Instance?.Broadcast(new PacketScreen(CurrentSize.X, CurrentSize.Y, (byte)PixelFormatHelper.ToId(Format), compressedImage));
                 // Debug.WriteLine($"Changed: {_changedData.Length}");
             }
