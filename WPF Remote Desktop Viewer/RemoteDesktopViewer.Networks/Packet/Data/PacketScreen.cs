@@ -4,10 +4,12 @@ namespace RemoteDesktopViewer.Networks.Packet.Data
 {
     public class PacketScreen : IPacket
     {
+        #region values
         public int Width { get; private set; }
         public int Height { get; private set; }
         public byte Format { get; private set; }
         public byte[] Data { get; private set; }
+        #endregion
         public PacketScreen() {}
 
         public PacketScreen(int width, int height, byte format, byte[] data)

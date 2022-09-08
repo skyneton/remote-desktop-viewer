@@ -38,6 +38,7 @@ namespace RemoteDesktopViewer.Utils.Image
                         var b = *point++;
                         var g = *point++;
                         var r = *point++;
+                        //[BB GGG RRR]
                         pixels[pos++] = (byte) ((b >> 6 << 6) | (g >> 5 << 3) | (r >> 5));
                         
                         var check = pos - 1;
