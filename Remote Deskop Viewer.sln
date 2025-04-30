@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35919.96
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Remote Deskop Control Pannel", "Remote Deskop Control Pannel\Remote Deskop Control Pannel.csproj", "{9C320832-F218-416C-B3CD-533D5143C40E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9C320832-F218-416C-B3CD-533D5143C40E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C320832-F218-416C-B3CD-533D5143C40E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C320832-F218-416C-B3CD-533D5143C40E}.Debug|x64.ActiveCfg = Debug|x64
+		{9C320832-F218-416C-B3CD-533D5143C40E}.Debug|x64.Build.0 = Debug|x64
+		{9C320832-F218-416C-B3CD-533D5143C40E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C320832-F218-416C-B3CD-533D5143C40E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C320832-F218-416C-B3CD-533D5143C40E}.Release|x64.ActiveCfg = Release|x64
+		{9C320832-F218-416C-B3CD-533D5143C40E}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5819598B-D26D-49A1-80F9-3F374DC39683}
+	EndGlobalSection
+EndGlobal
