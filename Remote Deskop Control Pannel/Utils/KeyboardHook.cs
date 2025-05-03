@@ -34,6 +34,8 @@ namespace RemoteDeskopControlPannel.Utils
         public const int SystemKeyDown = 260;
         public const int SystemKeyUp = 261;
 
+        public static KeyboardHook Instance { get; private set; } = new KeyboardHook();
+
         private KeyboardHook()
         {
             SetupHook();
