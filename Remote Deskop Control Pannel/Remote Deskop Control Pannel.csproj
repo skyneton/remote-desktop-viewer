@@ -8,6 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <Platforms>AnyCPU;x64</Platforms>
+    <AssemblyName>RemoteDesktopControlPannel</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

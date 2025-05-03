@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:RemoteDeskopControlPannel"
         mc:Ignorable="d"
-        Title="ClientWindow" Height="450" Width="800">
+        Title="ClientWindow" Height="450" Width="800"
+        SizeChanged="Window_SizeChanged">
     <Grid>
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <Canvas Name="Canvas" Width="{Binding ActualWidth, ElementName=Screen}" Height="{Binding ActualHeight, ElementName=Screen}">
@@ -18,5 +19,8 @@
                 </Canvas.Background>
             </Canvas>
         </ScrollViewer>
+        <Grid Name="TopMenu" VerticalAlignment="Top" HorizontalAlignment="Center" Background="WhiteSmoke">
+            <Button Content="Normal" Width="50" Click="Button_Click"></Button>
+        </Grid>
     </Grid>
 </Window>
