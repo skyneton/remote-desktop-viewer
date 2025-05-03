@@ -1,6 +1,5 @@
 ﻿using System.Windows;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using NetworkLibrary.Networks;
 using NetworkLibrary.Utils;
@@ -15,7 +14,7 @@ namespace RemoteDeskopControlPannel.Network
     {
         internal readonly ClientWindow Window = new();
         private readonly NetworkClient client;
-        private readonly KeyboardHook keyboardHook = new();
+        private readonly KeyboardHook.KeyboardCallback keyboardHookCallback;
         private readonly HashSet<VirtualKey> pressedKeys = [];
         public string Password { get; private set; }
         public ImageProcess ScreenProcess { get; private set; } = ImageProcess.Byte3RGB;
@@ -25,6 +24,7 @@ namespace RemoteDeskopControlPannel.Network
         public Client(string address, string password)
         {
             Password = password;
+            keyboardHookCallback = KeyHookCallback;
             var host = address;
             var port = Server.DefaultPort;
             var column = address.LastIndexOf(':');
@@ -52,13 +52,12 @@ namespace RemoteDeskopControlPannel.Network
             Window.Loaded += (sender, e) =>
             {
                 Window.IsOpened = true;
-                keyboardHook.SetupHook(new WindowInteropHelper(Window).EnsureHandle());
-                keyboardHook.AddCallback(KeyHookCallback);
+                KeyboardHook.AddCallback(keyboardHookCallback);
             };
             Window.Closed += (sender, e) =>
             {
                 Window.IsOpened = false;
-                keyboardHook.ShutdownHook();
+                KeyboardHook.RemoveCallback(keyboardHookCallback);
                 Close();
             };
             Window.Deactivated += (sender, e) =>

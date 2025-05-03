@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using NetworkLibrary.Utils;
 
@@ -15,47 +16,61 @@ namespace RemoteDeskopControlPannel.Utils
 
         [DllImport("user32.dll")]
         private static extern nint CallNextHookEx(nint idHook, int code, nint wParam, nint lParam);
+        [DllImport("kernel32.dll")]
+        private static extern nint GetModuleHandle(string lpFileName);
 
         private delegate nint LowLevelKeyboardProc(int nCode, nint wParam, nint lParam);
 
         public delegate bool KeyboardCallback(int nCode, int wParam, int vkCode);
-        private readonly ConcurrentBag<KeyboardCallback> _callbacks = [];
+        private static readonly ConcurrentBag<KeyboardCallback> _callbacks = [];
 
         private const int WhKeyboardLl = 13;
-        private nint _hookID = nint.Zero;
+        private static nint _hookID = nint.Zero;
 
-        public bool Hooked { get; private set; }
+        public static bool Hooked { get; private set; }
 
         public const int KeyDown = 256;
         public const int KeyUp = 257;
         public const int SystemKeyDown = 260;
         public const int SystemKeyUp = 261;
 
-        public void SetupHook(nint handle)
+        private KeyboardHook()
+        {
+            SetupHook();
+        }
+
+        ~KeyboardHook()
+        {
+            ShutdownHook();
+        }
+
+        private static void SetupHook()
         {
             if (Hooked) return;
-            _hookID = SetWindowsHookEx(WhKeyboardLl, HookCallback, handle, 0);
+            using var process = Process.GetCurrentProcess();
+            using var module = process.MainModule;
+            _hookID = SetWindowsHookEx(WhKeyboardLl, HookCallback, GetModuleHandle(module.ModuleName), 0);
             Hooked = true;
         }
 
-        public void ShutdownHook()
+        private static void ShutdownHook()
         {
             if (!Hooked) return;
             UnhookWindowsHookEx(_hookID);
             Hooked = false;
         }
 
-        public void AddCallback(KeyboardCallback callback)
+        public static void AddCallback(KeyboardCallback callback)
         {
             _callbacks.Add(callback);
         }
 
-        public void RemoveCallback(KeyboardCallback callback)
+        public static void RemoveCallback(KeyboardCallback callback)
         {
             _callbacks.Remove(callback);
         }
 
-        private nint HookCallback(int code, nint wParam, nint lParam)
+        private static nint HookCallback(int code, nint wParam, nint lParam)
         {
             var vkCode = Marshal.ReadInt32(lParam);
             if (code < 0) return CallNextHookEx(_hookID, code, wParam, lParam);
