@@ -20,7 +20,7 @@
             </Canvas>
         </ScrollViewer>
         <Grid Name="TopMenu" VerticalAlignment="Top" HorizontalAlignment="Center" Background="WhiteSmoke">
-            <Button Content="Normal" Width="50" Click="Button_Click"></Button>
+            <Button Content="Normal" Width="90" Height="20" Click="Button_Click"></Button>
         </Grid>
     </Grid>
 </Window>
