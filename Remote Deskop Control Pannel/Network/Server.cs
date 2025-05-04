@@ -47,7 +47,7 @@ namespace RemoteDeskopControlPannel.Network
         {
             IsProxy = isProxy;
             Password = password;
-            listener = new NetworkListener(Factory, port);
+            listener = new NetworkListener(Factory, port, receiveBufferSize: 1024 * 12);
 
             listener.SetNetworkInstance(typeof(TimeoutNetwork));
             listener.OnAcceptEventHandler += OnAccept;
@@ -68,7 +68,7 @@ namespace RemoteDeskopControlPannel.Network
                 if (!int.TryParse(proxy.AsSpan(column + 1), out port))
                     port = DefaultPort;
             }
-            client = new NetworkClient(Factory, host, port, timeout: 10000, networkInstance: typeof(TimeoutNetwork));
+            client = new NetworkClient(Factory, host, port, timeout: 10000, networkInstance: typeof(TimeoutNetwork), receiveBufferSize: 1024 * 12);
             client.Network.PacketHandler = new ServerPacketHandler(true);
             client.Network.Compression.CompressionEnabled = true;
             client.OnConnected += OnConnectedToProxy;
@@ -98,14 +98,14 @@ namespace RemoteDeskopControlPannel.Network
 
         private void OnConnectedToProxy(object? sender, NetworkEventArgs e)
         {
-            e.network?.SendPacket(new PacketLogin(Password));
-            e.network?.SendPacket(new PacketProxyType(true));
-            e.network?.SendPacket(new PacketScreenInfo(ScreenProcess.Quality));
+            e.Network?.SendPacket(new PacketLogin(Password));
+            e.Network?.SendPacket(new PacketProxyType(true));
+            e.Network?.SendPacket(new PacketScreenInfo(ScreenProcess.Quality));
         }
 
         private void OnAccept(object? sender, NetworkEventArgs e)
         {
-            var network = e.network;
+            var network = e.Network;
             if (network?.Connected != true) return;
             network.Compression.CompressionEnabled = true;
             if (IsProxy)
@@ -118,7 +118,7 @@ namespace RemoteDeskopControlPannel.Network
 
         private void OnDisconnect(object? sender, NetworkEventArgs e)
         {
-            var network = e.network;
+            var network = e.Network;
             if (host == network)
             {
                 lock (clients)

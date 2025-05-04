@@ -55,9 +55,12 @@ namespace RemoteDeskopControlPannel.Network.Handler
             NativeKeyboardMouse.SetCursorPos(packet.X, packet.Y);
         }
 
-        private static void KeyboardInputReceive(PacketKeyboardInput packet)
+        private static Task KeyboardInputReceive(PacketKeyboardInput packet)
         {
-            NativeKeyboardMouse.keybd_event(packet.KeyCode, 0, packet.Flag, 0);
+            return Task.Run(() =>
+            {
+                NativeKeyboardMouse.keybd_event(packet.KeyCode, 0, packet.Flag, 0);
+            });
         }
 
         private static void FullScreenReqReceive(NetworkLibrary.Networks.Network network)

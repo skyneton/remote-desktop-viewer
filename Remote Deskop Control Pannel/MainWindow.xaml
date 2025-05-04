@@ -87,7 +87,7 @@
             <Label Grid.Row="1" VerticalAlignment="Bottom">IP Address</Label>
             <TextBox Grid.Row="2" Height="24" VerticalAlignment="Top" Margin="15 0 15 0" Name="ClientIPAddress">localhost</TextBox>
             <Label Grid.Row="3" VerticalAlignment="Bottom">Password</Label>
-            <TextBox Grid.Row="4" Height="24" VerticalAlignment="Top" Margin="15 0 15 0" Name="ClientPassword"></TextBox>
+            <PasswordBox Grid.Row="4" Height="24" VerticalAlignment="Top" Margin="15 0 15 0" Name="ClientPassword" PasswordChar="●"></PasswordBox>
             <Button Name="ClientConnectButton" Grid.Row="10" Margin="3" Click="OnClientConnectButton">Connect</Button>
         </Grid>
         <Grid Grid.Column="1">

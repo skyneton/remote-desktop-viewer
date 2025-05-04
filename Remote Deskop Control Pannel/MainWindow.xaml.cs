@@ -46,7 +46,7 @@ namespace RemoteDeskopControlPannel
                 var k = data[0].ToLower();
                 var v = data[1];
                 if (k == "client-ip") ClientIPAddress.Text = v;
-                else if (k == "client-password") ClientPassword.Text = v;
+                else if (k == "client-password") ClientPassword.Password = v;
                 else if (k == "server-ip") ServerProxyAddress.Text = v;
                 else if (k == "server-password") ServerPassword.Text = v;
                 else if (k == "server-port") ServerPort.Text = v;
@@ -82,7 +82,7 @@ namespace RemoteDeskopControlPannel
         private void OnClientConnectButton(object sender, RoutedEventArgs e)
         {
             var ip = ClientIPAddress.Text ?? "";
-            var password = ClientPassword.Text ?? "";
+            var password = ClientPassword.Password ?? "";
             new Client(ip, password);
         }
 
@@ -126,7 +126,7 @@ namespace RemoteDeskopControlPannel
 
                 if (!isProxy)
                 {
-                    worker = new Worker(10);
+                    worker = new Worker(20);
                     worker.Execute(Server);
 
                     soundCapture = new SoundCapture(44100, 16, 2);

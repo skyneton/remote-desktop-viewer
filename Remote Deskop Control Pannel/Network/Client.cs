@@ -34,7 +34,7 @@ namespace RemoteDeskopControlPannel.Network
                 if (!int.TryParse(address.AsSpan(column + 1), out port))
                     port = Server.DefaultPort;
             }
-            client = new NetworkClient(Server.Factory, host, port, timeout: 10000);
+            client = new NetworkClient(Server.Factory, host, port, timeout: 10000, receiveBufferSize: 1024 * 12);
             client.Network.PacketHandler = new ClientPacketHandler(this);
             client.Network.Compression.CompressionEnabled = true;
             client.OnConnected += OnConnect;
@@ -173,10 +173,10 @@ namespace RemoteDeskopControlPannel.Network
 
         private void OnConnect(object? sender, NetworkEventArgs e)
         {
-            e.network?.SendPacket(new PacketLogin(Password));
-            e.network?.SendPacket(new PacketProxyType(false));
+            e.Network?.SendPacket(new PacketLogin(Password));
+            e.Network?.SendPacket(new PacketProxyType(false));
             var res = DisplaySettings.GetResolution();
-            e.network?.SendPacket(new PacketScreenSize(res.Width, res.Height));
+            e.Network?.SendPacket(new PacketScreenSize(res.Width, res.Height));
         }
 
         internal void UpdateScreenProcessor(QualityMode quality)
