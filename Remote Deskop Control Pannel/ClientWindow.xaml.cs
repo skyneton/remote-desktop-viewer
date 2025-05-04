@@ -10,7 +10,7 @@ namespace RemoteDeskopControlPannel
     {
         public bool IsOpened;
         private readonly int TopMenuOffsetX = 200;
-        private readonly int TopMenuOffsetY = 100;
+        private readonly int TopMenuOffsetY = 140;
         public ClientWindow()
         {
             InitializeComponent();

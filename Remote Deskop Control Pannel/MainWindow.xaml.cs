@@ -126,7 +126,7 @@ namespace RemoteDeskopControlPannel
 
                 if (!isProxy)
                 {
-                    worker = new Worker(20);
+                    worker = new Worker(15);
                     worker.Execute(Server);
 
                     soundCapture = new SoundCapture(44100, 16, 2);

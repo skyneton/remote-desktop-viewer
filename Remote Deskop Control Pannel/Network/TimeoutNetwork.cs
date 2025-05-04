@@ -9,7 +9,7 @@ namespace RemoteDeskopControlPannel.Network
         public TimeoutNetwork(Socket socket) : base(socket)
         {
             KeepAliveTimeout = 60 * 1000;
-            socket.ReceiveBufferSize = 1024 * 16;
+            socket.ReceiveBufferSize = 1024 * 18;
         }
 
         protected override void TimeoutHandler(long deltaTime)
@@ -19,7 +19,7 @@ namespace RemoteDeskopControlPannel.Network
 
         protected override void ExceptionHandler(Exception e)
         {
-            MessageBox.Show(e.ToString());
+            //MessageBox.Show(e.ToString());
         }
     }
 }
