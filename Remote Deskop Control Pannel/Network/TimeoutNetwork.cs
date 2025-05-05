@@ -1,10 +1,10 @@
 ﻿using System.Net.Sockets;
-using System.Windows;
+using NetworkLibrary.Networks.Multi;
 using RemoteDeskopControlPannel.Network.Packet;
 
 namespace RemoteDeskopControlPannel.Network
 {
-    internal class TimeoutNetwork : NetworkLibrary.Networks.Network
+    internal class TimeoutNetwork : MultiNetwork
     {
         public TimeoutNetwork(Socket socket) : base(socket)
         {

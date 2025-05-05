@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Windows;
 using System.Windows.Controls.Primitives;
-using NetworkLibrary.Networks;
+using NetworkLibrary.Networks.Multi;
 using NetworkLibrary.Networks.Packet;
 using NetworkLibrary.Utils;
 using RemoteDeskopControlPannel.ImageProcessing;
@@ -32,22 +32,22 @@ namespace RemoteDeskopControlPannel.Network
             new PacketSoundChunk()
             );
         public readonly bool IsProxy = false;
-        private readonly NetworkClient? client;
-        private readonly NetworkListener? listener;
-        private NetworkLibrary.Networks.Network? host = null;
-        private readonly HashSet<NetworkLibrary.Networks.Network> clients = [];
+        private readonly MultiNetworkClient? client;
+        private readonly MultiNetworkListener? listener;
+        private MultiNetwork? host = null;
+        private readonly HashSet<MultiNetwork> clients = [];
         internal readonly string Password;
         internal bool proxyConnected = false;
         public bool IsAvailable => client != null ? proxyConnected : clients.Count > 0;
         public ImageProcess ScreenProcess { get; private set; } = ImageProcess.Byte3RGB;
-        public readonly ConcurrentQueue<NetworkLibrary.Networks.Network> AcceptedClients = [];
+        public readonly ConcurrentQueue<MultiNetwork> AcceptedClients = [];
         public PacketSoundInfo? SoundInfo { get; private set; } = null;
         private ScreenSize cachedScreenSize = ScreenSize.Zero;
         public Server(int port, bool isProxy, string password)
         {
             IsProxy = isProxy;
             Password = password;
-            listener = new NetworkListener(Factory, port, receiveBufferSize: 1024 * 12);
+            listener = new MultiNetworkListener(Factory, port, 4, receiveBufferSize: 1024 * 12);
 
             listener.SetNetworkInstance(typeof(TimeoutNetwork));
             listener.OnAcceptEventHandler += OnAccept;
@@ -68,9 +68,7 @@ namespace RemoteDeskopControlPannel.Network
                 if (!int.TryParse(proxy.AsSpan(column + 1), out port))
                     port = DefaultPort;
             }
-            client = new NetworkClient(Factory, host, port, timeout: 10000, networkInstance: typeof(TimeoutNetwork), receiveBufferSize: 1024 * 12);
-            client.Network.PacketHandler = new ServerPacketHandler(true);
-            client.Network.Compression.CompressionEnabled = true;
+            client = new MultiNetworkClient(Factory, host, port, timeout: 10000, networkInstance: typeof(TimeoutNetwork), receiveBufferSize: 1024 * 12);
             client.OnConnected += OnConnectedToProxy;
             client.OnConnectFailed += (sender, e) =>
             {
@@ -96,14 +94,16 @@ namespace RemoteDeskopControlPannel.Network
             listener?.Close();
         }
 
-        private void OnConnectedToProxy(object? sender, NetworkEventArgs e)
+        private void OnConnectedToProxy(object? sender, MultiNetworkEventArgs e)
         {
-            e.Network?.SendPacket(new PacketLogin(Password));
-            e.Network?.SendPacket(new PacketProxyType(true));
-            e.Network?.SendPacket(new PacketScreenInfo(ScreenProcess.Quality));
+            e.Network!.PacketHandler = new ServerPacketHandler(true);
+            e.Network.Compression.CompressionEnabled = true;
+            e.Network.SendPacket(new PacketLogin(Password), 0);
+            e.Network.SendPacket(new PacketProxyType(true), 0);
+            e.Network.SendPacket(new PacketScreenInfo(ScreenProcess.Quality), 0);
         }
 
-        private void OnAccept(object? sender, NetworkEventArgs e)
+        private void OnAccept(object? sender, MultiNetworkEventArgs e)
         {
             var network = e.Network;
             if (network?.Connected != true) return;
@@ -116,7 +116,7 @@ namespace RemoteDeskopControlPannel.Network
             network.PacketHandler = new ServerPacketHandler(false);
         }
 
-        private void OnDisconnect(object? sender, NetworkEventArgs e)
+        private void OnDisconnect(object? sender, MultiNetworkEventArgs e)
         {
             var network = e.Network;
             if (host == network)
@@ -192,7 +192,7 @@ namespace RemoteDeskopControlPannel.Network
             };
         }
 
-        internal void ReceiveClient(NetworkLibrary.Networks.Network network, ActiveMode mode)
+        internal void ReceiveClient(MultiNetwork network, ActiveMode mode)
         {
             if (IsProxy && host?.IsAvailable != true && mode != ActiveMode.Server || !IsProxy && mode != ActiveMode.Client)
             {

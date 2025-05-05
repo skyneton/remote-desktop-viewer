@@ -2,15 +2,16 @@
 using System.Drawing.Imaging;
 using System.Windows;
 using System.Windows.Media.Imaging;
+using NetworkLibrary.Networks.Multi;
 using NetworkLibrary.Networks.Packet;
 using RemoteDeskopControlPannel.ImageProcessing;
 using RemoteDeskopControlPannel.Network.Packet;
 
 namespace RemoteDeskopControlPannel.Network.Handler
 {
-    internal class ClientPacketHandler(Client client) : IPacketHandler
+    internal class ClientPacketHandler(Client client) : IMultiPacketHandler
     {
-        public void Handle(NetworkLibrary.Networks.Network network, IPacket packet)
+        public void Handle(MultiNetwork network, IPacket packet)
         {
             switch (packet)
             {

@@ -1,7 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
-using NetworkLibrary.Networks;
+using NetworkLibrary.Networks.Multi;
 using NetworkLibrary.Utils;
 using RemoteDeskopControlPannel.ImageProcessing;
 using RemoteDeskopControlPannel.Network.Handler;
@@ -13,7 +13,7 @@ namespace RemoteDeskopControlPannel.Network
     internal class Client
     {
         internal readonly ClientWindow Window = new();
-        private readonly NetworkClient client;
+        private readonly MultiNetworkClient client;
         private readonly KeyboardHook.KeyboardCallback keyboardHookCallback;
         private readonly HashSet<VirtualKey> pressedKeys = [];
         public string Password { get; private set; }
@@ -34,9 +34,7 @@ namespace RemoteDeskopControlPannel.Network
                 if (!int.TryParse(address.AsSpan(column + 1), out port))
                     port = Server.DefaultPort;
             }
-            client = new NetworkClient(Server.Factory, host, port, timeout: 10000, receiveBufferSize: 1024 * 12);
-            client.Network.PacketHandler = new ClientPacketHandler(this);
-            client.Network.Compression.CompressionEnabled = true;
+            client = new MultiNetworkClient(Server.Factory, host, port, timeout: 10000, receiveBufferSize: 1024 * 12);
             client.OnConnected += OnConnect;
             client.OnConnectFailed += (sender, e) =>
             {
@@ -76,10 +74,15 @@ namespace RemoteDeskopControlPannel.Network
                 client.SendPacket(new PacketMousePosition(x, y));
                 if (Cursor != -1) NativeKeyboardMouse.SetCursor(Cursor);
             };
+            Window.Canvas.PreviewMouseMove += (sender, e) =>
+            {
+                if (Cursor != -1) NativeKeyboardMouse.SetCursor(Cursor);
+            };
             Window.Canvas.MouseWheel += (sender, e) =>
             {
                 client.SendPacket(new PacketMouseEvent((int)NativeKeyboardMouse.MouseType.Wheel, e.Delta));
                 e.Handled = true;
+                if (Cursor != -1) NativeKeyboardMouse.SetCursor(Cursor);
             };
             Window.Canvas.MouseDown += (sender, e) =>
             {
@@ -101,6 +104,7 @@ namespace RemoteDeskopControlPannel.Network
                         client.SendPacket(new PacketMouseEvent((int)NativeKeyboardMouse.MouseType.XButtonDown, 2));
                         break;
                 }
+                if (Cursor != -1) NativeKeyboardMouse.SetCursor(Cursor);
             };
             Window.Canvas.MouseUp += (sender, e) =>
             {
@@ -122,6 +126,7 @@ namespace RemoteDeskopControlPannel.Network
                         client.SendPacket(new PacketMouseEvent((int)NativeKeyboardMouse.MouseType.XButtonUp, 2));
                         break;
                 }
+                if (Cursor != -1) NativeKeyboardMouse.SetCursor(Cursor);
             };
             Window.Title = address;
             Window.Show();
@@ -130,6 +135,7 @@ namespace RemoteDeskopControlPannel.Network
         public void Close()
         {
             client.Close();
+            soundTrack?.Stop();
             Window.Close();
         }
 
@@ -171,12 +177,14 @@ namespace RemoteDeskopControlPannel.Network
             return true;
         }
 
-        private void OnConnect(object? sender, NetworkEventArgs e)
+        private void OnConnect(object? sender, MultiNetworkEventArgs e)
         {
-            e.Network?.SendPacket(new PacketLogin(Password));
-            e.Network?.SendPacket(new PacketProxyType(false));
+            e.Network!.PacketHandler = new ClientPacketHandler(this);
+            e.Network.Compression.CompressionEnabled = true;
+            e.Network.SendPacket(new PacketLogin(Password), 0);
+            e.Network.SendPacket(new PacketProxyType(false), 0);
             var res = DisplaySettings.GetResolution();
-            e.Network?.SendPacket(new PacketScreenSize(res.Width, res.Height));
+            e.Network.SendPacket(new PacketScreenSize(res.Width, res.Height), 0);
         }
 
         internal void UpdateScreenProcessor(QualityMode quality)

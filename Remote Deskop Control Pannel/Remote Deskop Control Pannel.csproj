@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
-    <PackageReference Include="NetworkLib" Version="1.0.4" />
+    <PackageReference Include="NetworkLib" Version="1.0.6" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.4" />
   </ItemGroup>
 

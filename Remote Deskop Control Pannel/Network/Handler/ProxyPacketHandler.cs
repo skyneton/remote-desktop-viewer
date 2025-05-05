@@ -1,15 +1,16 @@
 ﻿using System.Windows;
+using NetworkLibrary.Networks.Multi;
 using NetworkLibrary.Networks.Packet;
 using RemoteDeskopControlPannel.Network.Packet;
 using RemoteDeskopControlPannel.Utils;
 
 namespace RemoteDeskopControlPannel.Network.Handler
 {
-    internal class ProxyPacketHandler : IPacketHandler
+    internal class ProxyPacketHandler : IMultiPacketHandler
     {
         public bool IsLogined { get; private set; } = false;
         public ActiveMode ActiveType { get; private set; } = ActiveMode.None;
-        public void Handle(NetworkLibrary.Networks.Network network, IPacket packet)
+        public void Handle(MultiNetwork network, IPacket packet)
         {
             switch (packet)
             {
@@ -67,7 +68,7 @@ namespace RemoteDeskopControlPannel.Network.Handler
             MainWindow.Instance.Server?.UpdateScreenProcessor(packet.Quality);
         }
 
-        private void ProxyTypeReceive(NetworkLibrary.Networks.Network network, PacketProxyType packet)
+        private void ProxyTypeReceive(MultiNetwork network, PacketProxyType packet)
         {
             if (ActiveType != ActiveMode.Logined)
             {
@@ -79,7 +80,7 @@ namespace RemoteDeskopControlPannel.Network.Handler
             MainWindow.Instance.Server?.ReceiveClient(network, ActiveType);
         }
 
-        private void LoginPacketReceive(NetworkLibrary.Networks.Network network, PacketLogin packet)
+        private void LoginPacketReceive(MultiNetwork network, PacketLogin packet)
         {
             if (ActiveType != ActiveMode.None) return;
             if (MainWindow.Instance.Server?.Password != packet.Password)
@@ -91,13 +92,13 @@ namespace RemoteDeskopControlPannel.Network.Handler
             ActiveType = ActiveMode.Logined;
         }
 
-        private void ActiveHostBroadcastToClients(NetworkLibrary.Networks.Network network, IPacket packet)
+        private void ActiveHostBroadcastToClients(MultiNetwork network, IPacket packet)
         {
             if (ActiveType != ActiveMode.Server) return;
             MainWindow.Instance.Server?.Broadcast(packet);
         }
 
-        private void ActiveClientToHost(NetworkLibrary.Networks.Network network, IPacket packet)
+        private void ActiveClientToHost(MultiNetwork network, IPacket packet)
         {
             if (ActiveType != ActiveMode.Client) return;
             MainWindow.Instance.Server?.SendToHost(packet);

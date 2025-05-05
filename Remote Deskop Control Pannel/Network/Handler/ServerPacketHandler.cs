@@ -1,14 +1,15 @@
-﻿using NetworkLibrary.Networks.Packet;
+﻿using NetworkLibrary.Networks.Multi;
+using NetworkLibrary.Networks.Packet;
 using RemoteDeskopControlPannel.Network.Packet;
 using RemoteDeskopControlPannel.Utils;
 
 namespace RemoteDeskopControlPannel.Network.Handler
 {
-    internal class ServerPacketHandler(bool skipLogin) : IPacketHandler
+    internal class ServerPacketHandler(bool skipLogin) : IMultiPacketHandler
     {
         public bool IsLogined { get; private set; } = false;
         public ActiveMode ActiveType { get; private set; } = ActiveMode.None;
-        public void Handle(NetworkLibrary.Networks.Network network, IPacket packet)
+        public void Handle(MultiNetwork network, IPacket packet)
         {
             switch (packet)
             {
@@ -63,12 +64,12 @@ namespace RemoteDeskopControlPannel.Network.Handler
             });
         }
 
-        private static void FullScreenReqReceive(NetworkLibrary.Networks.Network network)
+        private static void FullScreenReqReceive(MultiNetwork network)
         {
             MainWindow.Instance.Server?.AcceptedClients?.Enqueue(network);
         }
 
-        private void ProxyConnectedReceive(NetworkLibrary.Networks.Network network, PacketProxyConnected packet)
+        private void ProxyConnectedReceive(MultiNetwork network, PacketProxyConnected packet)
         {
             if (!skipLogin)
             {
@@ -79,7 +80,7 @@ namespace RemoteDeskopControlPannel.Network.Handler
                 MainWindow.Instance.Server.proxyConnected = packet.IsConnected;
         }
 
-        private void ProxyTypeReceive(NetworkLibrary.Networks.Network network, PacketProxyType packet)
+        private void ProxyTypeReceive(MultiNetwork network, PacketProxyType packet)
         {
             if (ActiveType != ActiveMode.Logined)
             {
@@ -90,7 +91,7 @@ namespace RemoteDeskopControlPannel.Network.Handler
             MainWindow.Instance.Server?.ReceiveClient(network, ActiveType);
         }
 
-        private void LoginPacketReceive(NetworkLibrary.Networks.Network network, PacketLogin packet)
+        private void LoginPacketReceive(MultiNetwork network, PacketLogin packet)
         {
             if (ActiveType != ActiveMode.None) return;
             if (MainWindow.Instance.Server?.Password != packet.Password)

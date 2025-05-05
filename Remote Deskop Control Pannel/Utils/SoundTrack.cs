@@ -14,6 +14,11 @@ namespace RemoteDeskopControlPannel.Utils
             player.Play();
         }
 
+        public void Stop()
+        {
+            player.Stop();
+        }
+
         public void AddChunk(byte[] buffer)
         {
             provider.AddSamples(buffer, 0, buffer.Length);

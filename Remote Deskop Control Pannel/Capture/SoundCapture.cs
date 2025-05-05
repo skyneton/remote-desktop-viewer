@@ -17,7 +17,7 @@ namespace RemoteDeskopControlPannel.Capture
             capture.WaveFormat = new WaveFormat(sampleRate, bitsPerSample, channels);
             capture.DataAvailable += (s, a) =>
             {
-                MainWindow.Instance.Server?.Broadcast(new PacketSoundChunk(a.Buffer));
+                MainWindow.Instance.Server?.Broadcast(new PacketSoundChunk(a.Buffer[..a.BytesRecorded]));
             };
             capture.RecordingStopped += (s, a) =>
             {
