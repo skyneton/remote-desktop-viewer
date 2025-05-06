@@ -42,7 +42,7 @@ namespace RemoteDeskopControlPannel.Network
         public ImageProcess ScreenProcess { get; private set; } = ImageProcess.Byte3RGB;
         public readonly ConcurrentQueue<MultiNetwork> AcceptedClients = [];
         public PacketSoundInfo? SoundInfo { get; private set; } = null;
-        private ScreenSize cachedScreenSize = ScreenSize.Zero;
+        private readonly ScreenSize cachedScreenSize = ScreenSize.Zero;
         public Server(int port, bool isProxy, string password)
         {
             IsProxy = isProxy;
@@ -101,6 +101,9 @@ namespace RemoteDeskopControlPannel.Network
             e.Network.SendPacket(new PacketLogin(Password), 0);
             e.Network.SendPacket(new PacketProxyType(true), 0);
             e.Network.SendPacket(new PacketScreenInfo(ScreenProcess.Quality), 0);
+            var sound = MainWindow.Instance.soundCapture;
+            if (sound != null)
+                e.Network.SendPacket(new PacketSoundInfo(sound.SampleRate, sound.BitsPerSample, sound.Channels), 0);
         }
 
         private void OnAccept(object? sender, MultiNetworkEventArgs e)
@@ -216,6 +219,9 @@ namespace RemoteDeskopControlPannel.Network
             AcceptedClients.Enqueue(network);
             network.SendPacket(new PacketScreenInfo(ScreenProcess.Quality));
             if (SoundInfo != null) network.SendPacket(SoundInfo);
+            var sound = MainWindow.Instance.soundCapture;
+            if (sound != null)
+                network.SendPacket(new PacketSoundInfo(sound.SampleRate, sound.BitsPerSample, sound.Channels));
         }
     }
 }

@@ -8,11 +8,16 @@ namespace RemoteDeskopControlPannel.Utils
         private readonly WasapiOut player;
         public SoundTrack(int sampleRate, int bitsPerSample, int channels)
         {
-            player = new WasapiOut();
-            provider = new BufferedWaveProvider(new WaveFormat(sampleRate, bitsPerSample, channels));
+            player = new();
+            provider = new(new WaveFormat(sampleRate, bitsPerSample, channels))
+            {
+                DiscardOnBufferOverflow = true
+            };
             player.Init(provider);
             player.Play();
         }
+
+        ~SoundTrack() { Stop(); }
 
         public void Stop()
         {

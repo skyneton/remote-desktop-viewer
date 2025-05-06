@@ -9,6 +9,13 @@ namespace RemoteDeskopControlPannel.Network.Packet
         public int SampleRate { get; private set; }
         public int BitsPerSample { get; private set; }
         public int Channels { get; private set; }
+        public PacketSoundInfo() { }
+        public PacketSoundInfo(int sampleRate, int bitsPerSample, int channels)
+        {
+            SampleRate = sampleRate;
+            BitsPerSample = bitsPerSample;
+            Channels = channels;
+        }
 
         public void Read(ByteBuf buf)
         {

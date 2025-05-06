@@ -13,7 +13,7 @@ namespace RemoteDeskopControlPannel
         internal static MainWindow Instance { get; private set; }
         internal Server? Server { get; private set; }
         private Worker? worker = null;
-        private SoundCapture? soundCapture = null;
+        internal SoundCapture? soundCapture = null;
         public MainWindow()
         {
             InitializeComponent();
@@ -130,6 +130,7 @@ namespace RemoteDeskopControlPannel
                     worker.Execute(Server);
 
                     soundCapture = new SoundCapture(44100, 16, 2);
+                    soundCapture.Start();
                 }
             }
         }

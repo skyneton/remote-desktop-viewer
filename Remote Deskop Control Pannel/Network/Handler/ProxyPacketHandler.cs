@@ -1,5 +1,4 @@
-﻿using System.Windows;
-using NetworkLibrary.Networks.Multi;
+﻿using NetworkLibrary.Networks.Multi;
 using NetworkLibrary.Networks.Packet;
 using RemoteDeskopControlPannel.Network.Packet;
 using RemoteDeskopControlPannel.Utils;
@@ -72,7 +71,6 @@ namespace RemoteDeskopControlPannel.Network.Handler
         {
             if (ActiveType != ActiveMode.Logined)
             {
-                MessageBox.Show("ProxyTypeReceive");
                 network.Disconnect();
                 return;
             }
@@ -85,7 +83,6 @@ namespace RemoteDeskopControlPannel.Network.Handler
             if (ActiveType != ActiveMode.None) return;
             if (MainWindow.Instance.Server?.Password != packet.Password)
             {
-                MessageBox.Show("LoginPacketReceive");
                 network.Disconnect();
                 return;
             }
