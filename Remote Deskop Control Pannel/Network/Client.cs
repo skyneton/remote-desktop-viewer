@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using System.Drawing.Imaging;
+using System.IO;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using NetworkLibrary.Networks.Multi;
@@ -19,7 +21,7 @@ namespace RemoteDeskopControlPannel.Network
         public string Password { get; private set; }
         public ImageProcess ScreenProcess { get; private set; } = ImageProcess.Byte3RGB;
         public int Cursor { get; private set; } = -1;
-        internal WriteableBitmap? Bitmap = null;
+        internal readonly PixelSource Source = new();
         private SoundTrack? soundTrack = null;
         public Client(string address, string password)
         {
@@ -51,6 +53,7 @@ namespace RemoteDeskopControlPannel.Network
             {
                 Window.IsOpened = true;
                 KeyboardHook.AddCallback(keyboardHookCallback);
+                FrameUpdater();
             };
             Window.Closed += (sender, e) =>
             {
@@ -69,8 +72,8 @@ namespace RemoteDeskopControlPannel.Network
             Window.Canvas.MouseMove += (sender, e) =>
             {
                 var pos = e.GetPosition(Window.Canvas);
-                var x = (int)Math.Round(pos.X / Window.Canvas.RenderSize.Width * Bitmap?.PixelWidth ?? 0);
-                var y = (int)Math.Round(pos.Y / Window.Canvas.RenderSize.Height * Bitmap?.PixelHeight ?? 0);
+                var x = (int)Math.Round(pos.X / Window.Canvas.RenderSize.Width * Source.Width);
+                var y = (int)Math.Round(pos.Y / Window.Canvas.RenderSize.Height * Source.Height);
                 client.SendPacket(new PacketMousePosition(x, y));
                 if (Cursor != -1) NativeKeyboardMouse.SetCursor(Cursor);
             };
@@ -137,6 +140,30 @@ namespace RemoteDeskopControlPannel.Network
             client.Close();
             soundTrack?.Stop();
             Window.Close();
+        }
+
+        private async void FrameUpdater()
+        {
+            while (Window.IsOpened)
+            {
+                if (!Source.Updated || Source.Source.Length <= 0 || Source.Width <= 0 || Source.Height <= 0)
+                {
+                    await Task.Delay(1);
+                    continue;
+                }
+                using var bitmap = ImageCompress.PixelToBitmap(Source.Width, Source.Height, ScreenProcess.Format, ScreenProcess.PixelBytes, Source.Source);
+                using var ms = new MemoryStream();
+                bitmap.Save(ms, ImageFormat.Png);
+                Window.Dispatcher.Invoke(() =>
+                {
+                    var source = new BitmapImage();
+                    source.BeginInit();
+                    source.CacheOption = BitmapCacheOption.OnLoad;
+                    source.StreamSource = ms;
+                    source.EndInit();
+                    Window.Screen.Source = source;
+                });
+            }
         }
 
         internal void StartSoundTrack(int sampleRate, int bitsPerSample, int channels)

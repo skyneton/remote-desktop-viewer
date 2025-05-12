@@ -2,7 +2,6 @@
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Windows.Media.Imaging;
 using NetworkLibrary.Utils;
 using RemoteDeskopControlPannel.Network.Packet;
 using RemoteDeskopControlPannel.Utils;
@@ -53,10 +52,11 @@ namespace RemoteDeskopControlPannel.ImageProcessing
                 pixelPosStream.Write(ByteBuf.GetVarInt(end - startChanged));
             }
 
+
             if (pixelPosStream.Length <= 0) return null;
             var pixelPos = pixelPosStream.ToArray();
             var changedPixels = changedPixelStream.ToArray();
-            var compressPixels = ImageCompress.PixelToImage(changedPixels.Length / PixelBytes, 1, Format, PixelBytes, changedPixels, ImageFormat.Png);
+            var compressPixels = ImageCompress.PixelToByteArray(changedPixels.Length / PixelBytes, 1, Format, PixelBytes, changedPixels, ImageFormat.Png);
 
             if (compressPixels.Length < changedPixels.Length)
                 return new PacketScreenChunk(pixelPos, 1, compressPixels);
@@ -107,12 +107,10 @@ namespace RemoteDeskopControlPannel.ImageProcessing
             return false;
         }
 
-        public void Deprocess(WriteableBitmap bitmap, int compressType, byte[] pixelPos, byte[] pixelData)
+        public void Deprocess(byte[] pixelSource, int compressType, byte[] pixelPos, byte[] pixelData)
         {
-            bitmap.Lock();
-            var ptr = bitmap.BackBuffer;
             if (compressType > 0)
-                pixelData = ImageCompress.ArrayToPixelArray(pixelData);
+                pixelData = compressType == 1 ? ImageCompress.ArrayToPixelArray(pixelData) : ImageCompress.WebPToPixelArray(pixelData);
 
             var buf = new ByteBuf(pixelPos);
             var idx = 0;
@@ -120,32 +118,33 @@ namespace RemoteDeskopControlPannel.ImageProcessing
             {
                 var pos = buf.ReadVarInt();
                 var length = buf.ReadVarInt();
-                DeprocessChunk(ptr + pos * PixelBytes, length * PixelBytes, pixelData, idx);
+                if (pixelSource.Length < (pos + length) * PixelBytes) return;
+                DeprocessChunk(pixelSource, pos * PixelBytes, length * PixelBytes, pixelData, idx);
                 idx += length * PixelBytes;
-                var width = pos % bitmap.PixelWidth;
-                var height = pos / bitmap.PixelWidth;
-                if (width > 0)
-                {
-                    var e = Math.Min(bitmap.PixelWidth - width, length);
-                    bitmap.AddDirtyRect(new System.Windows.Int32Rect(width, height, e, 1));
-                    length -= e;
-                    height++;
-                }
-                while (length > 0)
-                {
-                    var e = Math.Min(bitmap.PixelWidth, length);
-                    bitmap.AddDirtyRect(new System.Windows.Int32Rect(0, height, e, 1));
-                    length -= e;
-                    height++;
-                }
+                //var width = pos % bitmap.PixelWidth;
+                //var height = pos / bitmap.PixelWidth;
+                //if (width > 0)
+                //{
+                //    var e = Math.Min(bitmap.PixelWidth - width, length);
+                //    bitmap.AddDirtyRect(new System.Windows.Int32Rect(width, height, e, 1));
+                //    length -= e;
+                //    height++;
+                //}
+                //while (length > 0)
+                //{
+                //    var e = Math.Min(bitmap.PixelWidth, length);
+                //    bitmap.AddDirtyRect(new System.Windows.Int32Rect(0, height, e, 1));
+                //    length -= e;
+                //    height++;
+                //}
             }
             //bitmap.AddDirtyRect(new System.Windows.Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
-            bitmap.Unlock();
+            //bitmap.Unlock();
         }
 
-        protected void DeprocessChunk(nint pos, int length, byte[] pixelData, int idx)
+        protected void DeprocessChunk(byte[] source, int offset, int length, byte[] pixelData, int idx)
         {
-            Marshal.Copy(pixelData, idx, pos, length);
+            Buffer.BlockCopy(pixelData, idx, source, offset, length);
         }
     }
 }

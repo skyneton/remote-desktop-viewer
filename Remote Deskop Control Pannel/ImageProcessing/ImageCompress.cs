@@ -2,14 +2,15 @@
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
+using RemoteDeskopControlPannel.Utils;
 
 namespace RemoteDeskopControlPannel.ImageProcessing
 {
     static class ImageCompress
     {
-        public static byte[] PixelToImage(int width, int height, PixelFormat format, int pixelPer, byte[] data, ImageFormat imageFormat)
+        public static Bitmap PixelToBitmap(int width, int height, PixelFormat format, int pixelPer, byte[] data)
         {
-            using var image = new Bitmap(width, height, format);
+            var image = new Bitmap(width, height, format);
             var bitmapData = image.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, format);
             var stride = bitmapData.Stride;
             var ptr = bitmapData.Scan0;
@@ -19,16 +20,48 @@ namespace RemoteDeskopControlPannel.ImageProcessing
                 ptr += stride;
             }
             image.UnlockBits(bitmapData);
-            var ms = new MemoryStream();
+            return image;
+        }
+
+        public static byte[] PixelToByteArray(int width, int height, PixelFormat format, int pixelPer, byte[] data, ImageFormat imageFormat)
+        {
+            //using var image = new Bitmap(width, height, format);
+            //var bitmapData = image.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, format);
+            //var stride = bitmapData.Stride;
+            //var ptr = bitmapData.Scan0;
+            //for (int y = 0; y < height; y++)
+            //{
+            //    Marshal.Copy(data, y * stride, ptr, width * pixelPer);
+            //    ptr += stride;
+            //}
+            //image.UnlockBits(bitmapData);
+            using var image = PixelToBitmap(width, height, format, pixelPer, data);
+            return BitmapToByteArray(image, imageFormat);
+        }
+
+        public static byte[] PixelToByteArray(int width, int height, PixelFormat format, int pixelPer, byte[] data, ImageFormat imageFormat, int quality)
+        {
+            using var image = PixelToBitmap(width, height, format, pixelPer, data);
+            return BitmapToByteArray(image, imageFormat, quality);
+        }
+
+        public static byte[] BitmapToByteArray(Bitmap image, ImageFormat imageFormat)
+        {
+            if (imageFormat == ImageFormat.Webp) return WebP.Encode(image);
+            using var ms = new MemoryStream();
             image.Save(ms, imageFormat);
 
             return ms.ToArray();
         }
 
-        public static byte[] PixelToImage(Bitmap image, ImageFormat imageFormat)
+        public static byte[] BitmapToByteArray(Bitmap image, ImageFormat imageFormat, int quality)
         {
+            if (imageFormat == ImageFormat.Webp) return WebP.Encode(image, quality);
             using var ms = new MemoryStream();
-            image.Save(ms, imageFormat);
+            var param = new EncoderParameters();
+            param.Param[0] = new EncoderParameter(Encoder.Quality, quality);
+            var codec = ImageCodecInfo.GetImageEncoders().FirstOrDefault(codec => codec.FormatID == imageFormat.Guid);
+            image.Save(ms, codec!, param);
 
             return ms.ToArray();
         }
@@ -48,7 +81,7 @@ namespace RemoteDeskopControlPannel.ImageProcessing
             var pixelWidth = bitmap.Width * pixelPer;
             for (int y = 0; y < bitmap.Height; y++)
             {
-                Marshal.Copy(ptr, array, y * pixelWidth, y * pixelWidth + pixelWidth);
+                Marshal.Copy(ptr, array, y * pixelWidth, pixelWidth);
                 ptr += bitmapData.Stride;
             }
             bitmap.UnlockBits(bitmapData);
@@ -58,6 +91,12 @@ namespace RemoteDeskopControlPannel.ImageProcessing
         public static byte[] ArrayToPixelArray(byte[] data)
         {
             using var bitmap = ArrayToBitmap(data);
+            return ToPixelArrray(bitmap);
+        }
+
+        public static byte[] WebPToPixelArray(byte[] data)
+        {
+            using var bitmap = WebP.Decode(data);
             return ToPixelArrray(bitmap);
         }
 

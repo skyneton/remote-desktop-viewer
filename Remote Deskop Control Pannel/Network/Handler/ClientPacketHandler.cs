@@ -1,11 +1,8 @@
-﻿using System.Drawing;
-using System.Drawing.Imaging;
-using System.Windows;
-using System.Windows.Media.Imaging;
-using NetworkLibrary.Networks.Multi;
+﻿using NetworkLibrary.Networks.Multi;
 using NetworkLibrary.Networks.Packet;
 using RemoteDeskopControlPannel.ImageProcessing;
 using RemoteDeskopControlPannel.Network.Packet;
+using RemoteDeskopControlPannel.Utils;
 
 namespace RemoteDeskopControlPannel.Network.Handler
 {
@@ -61,13 +58,15 @@ namespace RemoteDeskopControlPannel.Network.Handler
 
         private void ReceivePacketScreenChunk(PacketScreenChunk packet)
         {
-            if (client.Bitmap == null) return;
+            if (client.Source.Source.Length == 0 || client.Source.Width <= 0 || client.Source.Height <= 0) return;
             Task.Run(() =>
             {
-                client.Window.Dispatcher.Invoke(() =>
-                {
-                    client.ScreenProcess.Deprocess(client.Bitmap, packet.CompressType, packet.PixelPos, packet.PixelData);
-                });
+                client.ScreenProcess.Deprocess(client.Source.Source, packet.CompressType, packet.PixelPos, packet.PixelData);
+                client.Source.OnUpdate();
+                //client.Window.Dispatcher.Invoke(() =>
+                //{
+                //    client.ScreenProcess.Deprocess(client.Bitmap, packet.CompressType, packet.PixelPos, packet.PixelData);
+                //});
             });
         }
 
@@ -80,19 +79,20 @@ namespace RemoteDeskopControlPannel.Network.Handler
         {
             Task.Run(() =>
             {
-                using var source = ImageCompress.ArrayToBitmap(packet.Data);
-                client.Window.Dispatcher.Invoke(() =>
-                {
-                    client.Bitmap = new WriteableBitmap(source.Width, source.Height, 96, 96, ImageCompress.ToWpfPixelFormat(source.PixelFormat), null);
+                using var source = packet.CompressType != 2 ? ImageCompress.ArrayToBitmap(packet.Data) : WebP.Decode(packet.Data);
+                client.Source.Set(ImageCompress.ToPixelArrray(source), source.Width, source.Height);
+                //client.Window.Dispatcher.Invoke(() =>
+                //{
+                //    client.Bitmap = new WriteableBitmap(source.Width, source.Height, 96, 96, ImageCompress.ToWpfPixelFormat(source.PixelFormat), null);
 
-                    var bitmapData = source.LockBits(new Rectangle(0, 0, source.Width, source.Height), ImageLockMode.ReadOnly, source.PixelFormat);
-                    client.Bitmap.WritePixels(new Int32Rect(0, 0, source.Width, source.Height), bitmapData.Scan0, bitmapData.Height * bitmapData.Stride, bitmapData.Stride);
-                    source.UnlockBits(bitmapData);
+                //    var bitmapData = source.LockBits(new Rectangle(0, 0, source.Width, source.Height), ImageLockMode.ReadOnly, source.PixelFormat);
+                //    client.Bitmap.WritePixels(new Int32Rect(0, 0, source.Width, source.Height), bitmapData.Scan0, bitmapData.Height * bitmapData.Stride, bitmapData.Stride);
+                //    source.UnlockBits(bitmapData);
 
-                    client.Window.Screen.BeginInit();
-                    client.Window.Screen.Source = client.Bitmap;
-                    client.Window.Screen.EndInit();
-                });
+                //    client.Window.Screen.BeginInit();
+                //    client.Window.Screen.Source = client.Bitmap;
+                //    client.Window.Screen.EndInit();
+                //});
             });
         }
     }

@@ -9,7 +9,18 @@
     <UseWPF>true</UseWPF>
     <Platforms>AnyCPU;x64</Platforms>
     <AssemblyName>RemoteDesktopControlPannel</AssemblyName>
+	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="libwebp.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="libwebp.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Resources\" />
@@ -19,6 +30,18 @@
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <PackageReference Include="NetworkLib" Version="1.0.6" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Worker.cs">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="libsharpyuv.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Drawing.Imaging;
 using RemoteDeskopControlPannel.ImageProcessing;
 using RemoteDeskopControlPannel.Network;
@@ -17,10 +16,10 @@ namespace RemoteDeskopControlPannel.Capture
         public static void Run(Server server)
         {
             if (!server.IsAvailable) return;
-            //using var screen = GetCompressedScreen(server.ScreenProcess.Format);
-            using var screen = DisplaySettings.Screenshot(server.ScreenProcess.Format);
+            using var screen = GetCompressedScreen(server.ScreenProcess.Format, out var byteArray);
+            //using var screen = DisplaySettings.Screenshot(server.ScreenProcess.Format);
 
-            var bitmapData = screen.LockBits(new Rectangle(0, 0, screen.Width, screen.Height), ImageLockMode.ReadOnly, server.ScreenProcess.Format);
+            //var bitmapData = screen.LockBits(new Rectangle(0, 0, screen.Width, screen.Height), ImageLockMode.ReadOnly, server.ScreenProcess.Format);
             var force = screen.Width != beforeWidth || screen.Height != beforeHeight;
             if (force)
                 pixels = new byte[screen.Width * screen.Height * server.ScreenProcess.PixelBytes];
@@ -29,6 +28,7 @@ namespace RemoteDeskopControlPannel.Capture
             beforeHeight = screen.Height;
 
             var list = new List<Task>();
+            var bitmapData = screen.LockBits(new Rectangle(0, 0, screen.Width, screen.Height), ImageLockMode.ReadOnly, server.ScreenProcess.Format);
             for (int i = 0, end = screen.Width * screen.Height; i < end; i += ImageThreading)
             {
                 var start = i;
@@ -44,12 +44,13 @@ namespace RemoteDeskopControlPannel.Capture
 
             if (force)
             {
-                Debug.WriteLine($"{screen.Width} {screen.Height}");
-                server.Broadcast(new PacketFullScreen(ImageCompress.PixelToImage(screen, ImageFormat.Jpeg)));
+                server.Broadcast(new PacketFullScreen(2, byteArray));
+                //server.Broadcast(new PacketFullScreen(ImageCompress.ImageToByteArray(screen, ImageFormat.Jpeg)));
             }
             else if (!server.AcceptedClients.IsEmpty)
             {
-                var packet = new PacketFullScreen(ImageCompress.PixelToImage(screen, ImageFormat.Jpeg));
+                var packet = new PacketFullScreen(2, byteArray);
+                //var packet = new PacketFullScreen(ImageCompress.ImageToByteArray(screen, ImageFormat.Jpeg));
                 while (!server.AcceptedClients.IsEmpty)
                 {
                     if (!server.AcceptedClients.TryDequeue(out var client)) continue;
@@ -65,10 +66,18 @@ namespace RemoteDeskopControlPannel.Capture
             }
         }
 
-        private static Bitmap GetCompressedScreen(PixelFormat format)
+        private static Bitmap GetCompressedScreen(PixelFormat format, out byte[] byteArray)
         {
             using var screen = DisplaySettings.Screenshot(format);
-            return ImageCompress.ArrayToBitmap(ImageCompress.PixelToImage(screen, ImageFormat.Jpeg));
+            //byteArray = ImageCompress.BitmapToByteArray(screen, ImageFormat.Png, 70);
+            byteArray = ImageCompress.BitmapToByteArray(screen, ImageFormat.Webp, 70);
+            return WebP.Decode(byteArray);
+
+            //var webp = (double)ImageCompress.BitmapToByteArray(screen, ImageFormat.Webp, 70).Length / byteArray.Length;
+            //var jpeg = (double)ImageCompress.BitmapToByteArray(screen, ImageFormat.Jpeg, 70).Length / byteArray.Length;
+            //var png = (double)ImageCompress.BitmapToByteArray(screen, ImageFormat.Png, 70).Length / byteArray.Length;
+            //Debug.WriteLine($"WEBP{webp:0.00} JPEG{jpeg:0.00} PNG{png:0.00}");
+            //return ImageCompress.ArrayToBitmap(byteArray);
         }
     }
 }
