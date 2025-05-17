@@ -1,23 +1,28 @@
-﻿using RemoteDeskopControlPannel.Capture;
+﻿using System.IO;
+using RemoteDeskopControlPannel.Capture;
 using RemoteDeskopControlPannel.Network;
 
 namespace RemoteDeskopControlPannel
 {
-    internal class Worker
+    internal class Worker(int delay)
     {
         public bool IsActive { get; private set; } = true;
-        public int Delay { get; private set; }
-        public Worker(int delay)
-        {
-            Delay = delay;
-        }
+        public int Delay { get; private set; } = delay;
 
         public async void Execute(Server server)
         {
             while (IsActive)
             {
-                ScreenCapture.Run(server);
-                await Task.Delay(Delay);
+                try
+                {
+                    ScreenCapture.Run(server);
+                    await Task.Delay(Delay);
+                }
+                catch (Exception e)
+                {
+                    File.AppendAllText("err.log", $"{e}\n");
+                    throw;
+                }
             }
         }
 

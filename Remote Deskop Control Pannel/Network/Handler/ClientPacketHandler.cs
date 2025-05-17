@@ -30,12 +30,6 @@ namespace RemoteDeskopControlPannel.Network.Handler
                 case PacketSoundChunk:
                     ReceivePacketSoundChunk((PacketSoundChunk)packet);
                     break;
-                    //case PacketLogin:
-                    //    LoginPacketReceive(network, (PacketLogin)packet);
-                    //    break;
-                    //case PacketProxyType:
-                    //    ProxyTypeReceive(network, (PacketProxyType)packet);
-                    //    break;
             }
             ;
         }
@@ -80,7 +74,7 @@ namespace RemoteDeskopControlPannel.Network.Handler
             Task.Run(() =>
             {
                 using var source = packet.CompressType != 2 ? ImageCompress.ArrayToBitmap(packet.Data) : WebP.Decode(packet.Data);
-                client.Source.Set(ImageCompress.ToPixelArrray(source), source.Width, source.Height);
+                client.Source.Set(ImageCompress.ToPixelArrray(source!), source!.Width, source.Height);
                 //client.Window.Dispatcher.Invoke(() =>
                 //{
                 //    client.Bitmap = new WriteableBitmap(source.Width, source.Height, 96, 96, ImageCompress.ToWpfPixelFormat(source.PixelFormat), null);

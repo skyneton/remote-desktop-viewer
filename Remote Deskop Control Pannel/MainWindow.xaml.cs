@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls.Primitives;
+using NAudio.Wave;
 using RemoteDeskopControlPannel.Capture;
 using RemoteDeskopControlPannel.Network;
 
@@ -129,8 +130,13 @@ namespace RemoteDeskopControlPannel
                     worker = new Worker(15);
                     worker.Execute(Server);
 
-                    soundCapture = new SoundCapture(44100, 16, 2);
-                    soundCapture.Start();
+                    try
+                    {
+                        var device = WasapiLoopbackCapture.GetDefaultLoopbackCaptureDevice();
+                        soundCapture = new SoundCapture(device, 44100, 16, 2);
+                        soundCapture.Start();
+                    }
+                    catch (Exception) { }
                 }
             }
         }

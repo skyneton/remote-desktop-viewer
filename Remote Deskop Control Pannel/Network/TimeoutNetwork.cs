@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System.IO;
+using System.Net.Sockets;
 using NetworkLibrary.Networks.Multi;
 using RemoteDeskopControlPannel.Network.Packet;
 
@@ -9,7 +10,6 @@ namespace RemoteDeskopControlPannel.Network
         public TimeoutNetwork(Socket socket) : base(socket)
         {
             KeepAliveTimeout = 60 * 1000;
-            socket.ReceiveBufferSize = 1024 * 18;
         }
 
         protected override void TimeoutHandler(long deltaTime)
@@ -19,7 +19,7 @@ namespace RemoteDeskopControlPannel.Network
 
         protected override void ExceptionHandler(Exception e)
         {
-            //MessageBox.Show(e.ToString());
+            File.AppendAllText("err.log", $"{e}\n");
         }
     }
 }

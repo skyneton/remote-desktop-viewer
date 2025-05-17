@@ -36,7 +36,7 @@ namespace RemoteDeskopControlPannel.Network
                 if (!int.TryParse(address.AsSpan(column + 1), out port))
                     port = Server.DefaultPort;
             }
-            client = new MultiNetworkClient(Server.Factory, host, port, timeout: 10000, receiveBufferSize: 1024 * 12);
+            client = new MultiNetworkClient(Server.Factory, host, port, timeout: 10000, receiveBufferSize: 1024 * 12, networkInstance: typeof(TimeoutNetwork));
             client.OnConnected += OnConnect;
             client.OnConnectFailed += (sender, e) =>
             {
@@ -146,29 +146,40 @@ namespace RemoteDeskopControlPannel.Network
         {
             while (Window.IsOpened)
             {
-                if (!Source.Updated || Source.Source.Length <= 0 || Source.Width <= 0 || Source.Height <= 0)
+                try
                 {
-                    await Task.Delay(1);
-                    continue;
+                    if (!Source.Updated || Source.Source.Length <= 0 || Source.Width <= 0 || Source.Height <= 0)
+                    {
+                        await Task.Delay(1);
+                        continue;
+                    }
+                    using var bitmap = ImageCompress.PixelToBitmap(Source.Width, Source.Height, ScreenProcess.Format, ScreenProcess.PixelBytes, Source.Source);
+                    using var ms = new MemoryStream();
+                    bitmap.Save(ms, ImageFormat.Png);
+                    Window.Dispatcher.Invoke(() =>
+                    {
+                        var source = new BitmapImage();
+                        source.BeginInit();
+                        source.CacheOption = BitmapCacheOption.OnLoad;
+                        source.StreamSource = ms;
+                        source.EndInit();
+                        Window.Screen.Source = source;
+                    });
                 }
-                using var bitmap = ImageCompress.PixelToBitmap(Source.Width, Source.Height, ScreenProcess.Format, ScreenProcess.PixelBytes, Source.Source);
-                using var ms = new MemoryStream();
-                bitmap.Save(ms, ImageFormat.Png);
-                Window.Dispatcher.Invoke(() =>
+                catch (Exception e)
                 {
-                    var source = new BitmapImage();
-                    source.BeginInit();
-                    source.CacheOption = BitmapCacheOption.OnLoad;
-                    source.StreamSource = ms;
-                    source.EndInit();
-                    Window.Screen.Source = source;
-                });
+                    MessageBox.Show(e.ToString());
+                }
             }
         }
 
         internal void StartSoundTrack(int sampleRate, int bitsPerSample, int channels)
         {
-            soundTrack = new SoundTrack(sampleRate, bitsPerSample, channels);
+            try
+            {
+                soundTrack = new SoundTrack(sampleRate, bitsPerSample, channels);
+            }
+            catch (Exception) { }
         }
 
         internal void ReceiveSoundChunk(byte[] buffer)
