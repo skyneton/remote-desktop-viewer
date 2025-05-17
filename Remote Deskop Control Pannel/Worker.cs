@@ -20,7 +20,11 @@ namespace RemoteDeskopControlPannel
                 }
                 catch (Exception e)
                 {
-                    File.AppendAllText("err.log", $"{e}\n");
+                    try
+                    {
+                        File.AppendAllText("err.log", $"{e}\n");
+                    }
+                    catch (Exception) { }
                     throw;
                 }
             }

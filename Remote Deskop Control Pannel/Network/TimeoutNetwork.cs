@@ -19,7 +19,12 @@ namespace RemoteDeskopControlPannel.Network
 
         protected override void ExceptionHandler(Exception e)
         {
-            File.AppendAllText("err.log", $"{e}\n");
+            if (e is SocketException { SocketErrorCode: SocketError.OperationAborted } || e is SocketException { SocketErrorCode: SocketError.ConnectionReset }) return;
+            try
+            {
+                File.AppendAllText("err.log", $"{e}\n");
+            }
+            catch (Exception) { }
         }
     }
 }
